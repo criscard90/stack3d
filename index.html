@@ -18,10 +18,12 @@ canvas{display:block}
 #perfect-pill.hot{border-color:var(--accent);color:var(--accent);box-shadow:0 0 10px var(--accent)}
 #special-banner{margin-top:8px;font-size:1.3rem;font-weight:800;text-shadow:0 2px 8px #000;min-height:1.6em}
 #bomb-hud{position:fixed;left:12px;bottom:12px;z-index:15;display:flex;flex-direction:column;gap:6px;align-items:flex-start}
-#bomb-btn{font-size:1.15rem;font-weight:800;padding:10px 14px;border-radius:14px;cursor:pointer;border:1px solid rgba(255,255,255,.3);background:rgba(0,0,0,.6);color:#fff;box-shadow:0 4px 14px rgba(0,0,0,.4)}
+#bomb-btn{position:relative;overflow:hidden;font-size:1.15rem;font-weight:800;padding:10px 14px;border-radius:14px;cursor:pointer;border:1px solid rgba(255,255,255,.3);background:rgba(0,0,0,.6);color:#fff;box-shadow:0 4px 14px rgba(0,0,0,.4);min-width:110px}
 #bomb-btn:disabled{opacity:.45;cursor:default}
 #bomb-btn.ready{border-color:#ff3b30;box-shadow:0 0 12px #ff3b30}
-#bomb-progress{font-size:.75rem;font-weight:700;opacity:.9;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.2);border-radius:999px;padding:2px 8px}
+#bomb-fill{position:absolute;left:0;top:0;bottom:0;width:0%;background:linear-gradient(90deg,rgba(255,149,0,.55),rgba(255,59,48,.55));transition:width .25s;pointer-events:none}
+#bomb-btn.ready #bomb-fill{background:linear-gradient(90deg,rgba(255,149,0,.75),rgba(255,59,48,.75))}
+#bomb-label{position:relative;z-index:1}
 
 #menu{position:fixed;top:12px;right:12px;z-index:20;display:flex;flex-direction:column;align-items:flex-end;gap:8px}
 #menu-btn{width:44px;height:44px;padding:0;font-size:1.3rem;line-height:1;border-radius:14px;background:rgba(0,0,0,.6)}
@@ -50,7 +52,7 @@ canvas{display:block}
 <div id="special-banner"></div>
 </div>
 
-<div id="bomb-hud"><button id="bomb-btn" title="Usa bomba (B)">💣 0/3</button><div id="bomb-progress">Perfect per bomba: 0/10</div></div>
+<div id="bomb-hud"><button id="bomb-btn" title="Usa bomba (B)"><div id="bomb-fill"></div><span id="bomb-label">💣 0/3</span></button></div>
 <div id="menu"><button class="btn" id="menu-btn" aria-label="Menu">&#9776;</button><div id="menu-popup"><button class="btn" id="restart-btn">Restart</button><button class="btn" id="shop-btn">Shop</button></div></div>
 <div id="flash"></div>
 <div id="gameover"><div class="card"><h1>GAME OVER</h1><p id="go-reason"></p><p id="go-stats"></p><button class="btn" id="go-retry">Gioca ancora</button> <button class="btn" id="go-shop">Shop</button></div></div>
@@ -86,7 +88,7 @@ function vibrate(p){try{if(navigator.vibrate)navigator.vibrate(p);}catch(e){}}
 function flash(op,color){const f=$('flash');f.style.background=color||'#fff';f.style.opacity=op;setTimeout(()=>f.style.opacity=0,80);}
 function shake(m,t){shakeMag=Math.max(shakeMag,m);shakeTime=Math.max(shakeTime,t);}
 function banner(txt,ms){const b=$('special-banner');b.textContent=txt;clearTimeout(b._t);b._t=setTimeout(()=>b.textContent='',ms||2200);}
-function refreshHUD(){$('score').textContent=score;$('high-score').textContent='Record: '+highScore;$('coins').textContent='🪙 '+coins;$('perfect-pill').textContent='Perfect x'+perfectStreak;$('perfect-pill').classList.toggle('hot',perfectStreak>0);$('shop-coins').textContent='monete '+coins;const bb=$('bomb-btn'),bp=$('bomb-progress');if(bb){bb.textContent='💣 '+bombs+'/'+BOMB_MAX;bb.disabled=bombs<=0||gameEnded;bb.classList.toggle('ready',bombs>0);}if(bp){bp.textContent=bombs>=BOMB_MAX?'Bombe MAX':('Perfect per bomba: '+bombProgress+'/'+BOMB_EVERY);}}
+function refreshHUD(){$('score').textContent=score;$('high-score').textContent='Record: '+highScore;$('coins').textContent='🪙 '+coins;$('perfect-pill').textContent='Perfect x'+perfectStreak;$('perfect-pill').classList.toggle('hot',perfectStreak>0);$('shop-coins').textContent='monete '+coins;const bb=$('bomb-btn'),bf=$('bomb-fill'),bl=$('bomb-label');if(bb){if(bl)bl.textContent='💣 '+bombs+'/'+BOMB_MAX;else bb.textContent='💣 '+bombs+'/'+BOMB_MAX;bb.disabled=bombs<=0||gameEnded;bb.classList.toggle('ready',bombs>0);}if(bf){bf.style.width=(bombs>=BOMB_MAX?100:(bombProgress/BOMB_EVERY*100))+'%';}}
 function makeMesh(w,h,d,special){
  let geo;
  if(shapeId==='cylinder')geo=new THREE.CylinderGeometry(.5,.5,1,28);
