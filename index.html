@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Stack 3D - Torre Dinamica, Power-Up & Shop</title>
+<title>Stack 3D</title>
 <style>
 :root{--accent:#ff71ce}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -12,20 +12,22 @@ canvas{display:block}
 #ui{position:fixed;top:12px;left:50%;transform:translateX(-50%);text-align:center;pointer-events:none;z-index:10;width:100%}
 #score{font-size:4.2rem;font-weight:800;text-shadow:0 4px 14px rgba(0,0,0,.6);margin:0;line-height:1}
 #high-score{font-size:1rem;opacity:.85}
-#stats{display:flex;gap:10px;justify-content:center;margin-top:6px;flex-wrap:wrap}
-.pill{background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.2);border-radius:999px;padding:4px 12px;font-size:.95rem}
+#hud-left{position:fixed;top:12px;left:12px;z-index:15;display:flex;flex-direction:column;gap:6px;align-items:flex-start;pointer-events:none}
+.pill{display:inline-flex;align-items:center;gap:5px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.2);border-radius:999px;padding:3px 9px;font-size:.78rem;font-weight:700;letter-spacing:.02em;box-shadow:0 2px 8px rgba(0,0,0,.35)}
+#coins{color:#ffd966}
+#perfect-pill.hot{border-color:var(--accent);color:var(--accent);box-shadow:0 0 10px var(--accent)}
 #special-banner{margin-top:8px;font-size:1.3rem;font-weight:800;text-shadow:0 2px 8px #000;min-height:1.6em}
-#sway-wrap{width:230px;margin:6px auto 0;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.25);border-radius:10px;padding:6px 10px}
+#sway-wrap{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);width:230px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.25);border-radius:10px;padding:6px 10px;z-index:12;pointer-events:none;box-shadow:0 4px 14px rgba(0,0,0,.4)}
 #sway-label{font-size:.72rem;letter-spacing:.06em;opacity:.9}
 #sway-bar{height:10px;background:#333;border-radius:999px;overflow:hidden;margin-top:4px;position:relative}
 #sway-fill{height:100%;width:8%;margin-left:46%;background:linear-gradient(90deg,#2ecc71,#f1c40f,#e74c3c);border-radius:999px}
 #sway-marker{position:absolute;left:50%;top:-2px;bottom:-2px;width:2px;background:#fff}
-#instructions{position:fixed;bottom:92px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,.85);font-size:1rem;pointer-events:none;text-align:center;z-index:10;text-shadow:0 2px 6px #000;width:92%}
-#tilt-controls{position:fixed;bottom:14px;left:12px;z-index:11;display:flex;gap:8px}
-#tilt-controls .col{display:flex;flex-direction:column;gap:8px}
-.tbtn{width:52px;height:52px;border-radius:14px;border:1px solid rgba(255,255,255,.35);background:rgba(0,0,0,.5);color:#fff;font-size:1.4rem;touch-action:none}
-.tbtn:active{background:rgba(255,255,255,.25)}
-#buttons{position:fixed;top:12px;right:12px;z-index:20;display:flex;flex-direction:column;gap:8px}
+#menu{position:fixed;top:12px;right:12px;z-index:20;display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+#menu-btn{width:44px;height:44px;padding:0;font-size:1.3rem;line-height:1;border-radius:14px;background:rgba(0,0,0,.6)}
+#menu-popup{display:none;flex-direction:column;gap:8px;background:rgba(0,0,0,.75);border:1px solid rgba(255,255,255,.25);border-radius:14px;padding:10px;min-width:150px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+#menu.open #menu-popup{display:flex}
+#menu-popup .btn{width:100%;text-align:center}
+#menu-btn:active{background:rgba(255,255,255,.25)}
 .btn{cursor:pointer;border:1px solid rgba(255,255,255,.3);background:rgba(0,0,0,.55);color:#fff;border-radius:12px;padding:10px 14px;font-size:1rem}
 #flash{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:30;transition:opacity .25s}
 #gameover{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:40;background:rgba(0,0,0,.6)}
@@ -36,18 +38,18 @@ canvas{display:block}
 .shop-item{flex:1 1 140px;border:1px solid rgba(255,255,255,.2);border-radius:12px;padding:10px;text-align:center;background:rgba(255,255,255,.05)}
 .shop-item.active{border-color:var(--accent);box-shadow:0 0 12px var(--accent)}
 .shop-item button{margin-top:8px;width:100%;padding:8px;border-radius:10px;border:0;cursor:pointer;font-weight:700}
-@media(max-width:600px){#score{font-size:3rem}.tbtn{width:58px;height:58px}}
+@media(max-width:600px){#score{font-size:3rem}.pill{font-size:.72rem;padding:2px 8px}#sway-wrap{width:200px}}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
+<div id="hud-left"><div class="pill" id="coins">🪙 0</div><div class="pill" id="perfect-pill">Perfect x0</div><div class="pill" id="cement-pill" style="display:none">Cemento: 0</div></div>
 <div id="ui"><div id="score">0</div><div id="high-score">Record: 0</div>
-<div id="stats"><div class="pill" id="coins">monete 0</div><div class="pill" id="perfect-pill">Perfect x0</div><div class="pill" id="cement-pill" style="display:none">Cemento: 0</div></div>
+<!-- HUD monete/perfect spostato in alto a sinistra -->
 <div id="special-banner"></div>
-<div id="sway-wrap"><div id="sway-label">EQUILIBRIO - frecce / bottoni / giroscopio per stabilizzare</div><div id="sway-bar"><div id="sway-fill"></div><div id="sway-marker"></div></div></div></div>
-<div id="instructions">Clicca / Tocca / SPAZIO per fermare il blocco<br>Frecce o inclina il telefono per bilanciare la torre</div>
-<div id="tilt-controls"><div class="col"><button class="tbtn" id="t-left">L</button></div><div class="col"><button class="tbtn" id="t-up">U</button><button class="tbtn" id="t-down">D</button></div><div class="col"><button class="tbtn" id="t-right">R</button></div></div>
-<div id="buttons"><button class="btn" id="shop-btn">Shop</button><button class="btn" id="restart-btn">Restart</button></div>
+</div>
+<div id="sway-wrap"><div id="sway-label">EQUILIBRIO</div><div id="sway-bar"><div id="sway-fill"></div><div id="sway-marker"></div></div></div>
+<div id="menu"><button class="btn" id="menu-btn" aria-label="Menu">&#9776;</button><div id="menu-popup"><button class="btn" id="restart-btn">Restart</button><button class="btn" id="shop-btn">Shop</button></div></div>
 <div id="flash"></div>
 <div id="gameover"><div class="card"><h1>GAME OVER</h1><p id="go-reason"></p><p id="go-stats"></p><button class="btn" id="go-retry">Gioca ancora</button> <button class="btn" id="go-shop">Shop</button></div></div>
 <div id="shop"><div class="card"><h2 style="margin:0">Negozio <span id="shop-coins" style="float:right">0</span></h2><p style="opacity:.8">Temi e forme salvati in localStorage. Monete da blocchi oro e serie Perfect.</p><h3>Temi grafici</h3><div class="shop-row" id="themes"></div><h3>Forme blocchi</h3><div class="shop-row" id="shapes"></div><button class="btn" id="shop-close" style="width:100%">Chiudi</button></div></div>
@@ -81,7 +83,7 @@ function vibrate(p){try{if(navigator.vibrate)navigator.vibrate(p);}catch(e){}}
 function flash(op,color){const f=$('flash');f.style.background=color||'#fff';f.style.opacity=op;setTimeout(()=>f.style.opacity=0,80);}
 function shake(m,t){shakeMag=Math.max(shakeMag,m);shakeTime=Math.max(shakeTime,t);}
 function banner(txt,ms){const b=$('special-banner');b.textContent=txt;clearTimeout(b._t);b._t=setTimeout(()=>b.textContent='',ms||2200);}
-function refreshHUD(){$('score').textContent=score;$('high-score').textContent='Record: '+highScore;$('coins').textContent='monete '+coins;$('shop-coins').textContent='monete '+coins;$('perfect-pill').textContent='Perfect x'+perfectStreak;const c=$('cement-pill');if(cementLeft>0){c.style.display='inline-block';c.textContent='Cemento: '+cementLeft;}else c.style.display='none';}
+function refreshHUD(){$('score').textContent=score;$('high-score').textContent='Record: '+highScore;$('coins').textContent='🪙 '+coins;$('perfect-pill').textContent='Perfect x'+perfectStreak;$('perfect-pill').classList.toggle('hot',perfectStreak>0);$('shop-coins').textContent='monete '+coins;const c=$('cement-pill');if(cementLeft>0){c.style.display='inline-flex';c.textContent='Cemento: '+cementLeft;}else c.style.display='none';}
 function makeMesh(w,h,d,special){
  let geo;
  if(shapeId==='cylinder')geo=new THREE.CylinderGeometry(.5,.5,1,28);
@@ -107,7 +109,7 @@ function centerOfMass(){if(!stack.length)return{x:0,z:0};let sx=0,sz=0;stack.for
 function handlePlace(){
  if(gameEnded){restartGame();return;}
  if($('shop').style.display==='flex')return;
- if(!gameStarted){gameStarted=true;$('instructions').style.display='none';}
+ if(!gameStarted)gameStarted=true;
  const top=stack[stack.length-1],prev=stack[stack.length-2];
  let delta=top.mesh.position[currentDirection]-prev.mesh.position[currentDirection];
  let snapTol=PERFECT_TOL;
@@ -160,7 +162,7 @@ function endGame(reason){
  if(reason==='miss'&&top){addOverhang(top.mesh.position.x,top.mesh.position.z,top.width,top.depth,top.mesh.material.color.clone());towerGroup.remove(top.mesh);}
  $('go-reason').textContent=reason==='topple'?'La torre e COLLASSATA per lo sbilanciamento!':'Hai mancato il blocco!';
  $('go-stats').innerHTML='Punteggio: <b>'+score+'</b> - Record: <b>'+highScore+'</b><br>monete '+coins+' - best streak x'+bestStreak;
- $('gameover').style.display='flex';$('instructions').innerText='GAME OVER! Clicca per ricominciare.';$('instructions').style.display='block';
+ $('gameover').style.display='flex';
 }
 function restartGame(){
  stack.forEach(l=>towerGroup.remove(l.mesh));overhangs.forEach(o=>scene.remove(o.mesh));particles.forEach(p=>scene.remove(p.mesh));
@@ -168,7 +170,7 @@ function restartGame(){
  sway={ax:0,az:0,vx:0,vz:0};cementLeft=0;currentSpecial=null;specialCountdown=5;perfectStreak=0;toppleLock=false;
  shakeTime=shakeMag=0;towerGroup.rotation.set(0,0,0);
  $('gameover').style.display='none';$('special-banner').textContent='';$('score').textContent='0';
- $('instructions').innerText='Clicca / Tocca / SPAZIO per fermare il blocco';$('instructions').style.display='block';
+ $('menu').classList.remove('open');
  addLayer(0,0,10,10,null);addLayer(0,0,10,10,null);
  camera.position.set(20,20,20);camera.lookAt(0,0,0);refreshHUD();
 }
@@ -191,17 +193,16 @@ function init(){
  applyTheme(themeId);
  addLayer(0,0,10,10,null);addLayer(0,0,10,10,null);refreshHUD();buildShop();
  addEventListener('resize',()=>{const a=innerWidth/innerHeight,dd=20;camera.left=-dd*a;camera.right=dd*a;camera.top=dd;camera.bottom=-dd;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
- addEventListener('pointerdown',e=>{if(e.target.closest('button')||e.target.closest('#shop')||e.target.closest('#gameover'))return;handlePlace();});
+ addEventListener('pointerdown',e=>{const inMenu=!!e.target.closest('#menu');if(!inMenu)$('menu').classList.remove('open');if(inMenu||e.target.closest('button')||e.target.closest('#shop')||e.target.closest('#gameover'))return;handlePlace();});
  addEventListener('keydown',e=>{if(e.code==='Space'){e.preventDefault();handlePlace();}if(e.code==='ArrowLeft')tiltInput.z=-1;if(e.code==='ArrowRight')tiltInput.z=1;if(e.code==='ArrowUp')tiltInput.x=-1;if(e.code==='ArrowDown')tiltInput.x=1;if(e.code==='KeyR')restartGame();});
  addEventListener('keyup',e=>{if(e.code==='ArrowLeft'||e.code==='ArrowRight')tiltInput.z=0;if(e.code==='ArrowUp'||e.code==='ArrowDown')tiltInput.x=0;});
- bindHold('t-left',()=>tiltInput.z=-1,()=>tiltInput.z=0);bindHold('t-right',()=>tiltInput.z=1,()=>tiltInput.z=0);
- bindHold('t-up',()=>tiltInput.x=-1,()=>tiltInput.x=0);bindHold('t-down',()=>tiltInput.x=1,()=>tiltInput.x=0);
  try{addEventListener('deviceorientation',e=>{if(e.gamma==null||e.beta==null)return;tiltInput.z=Math.max(-1,Math.min(1,e.gamma/25));tiltInput.x=Math.max(-1,Math.min(1,(e.beta-40)/25));});}catch(err){}
- $('shop-btn').onclick=e=>{e.stopPropagation();$('shop').style.display='flex';refreshHUD();};
+ $('shop-btn').onclick=e=>{e.stopPropagation();$('menu').classList.remove('open');$('shop').style.display='flex';refreshHUD();};
  $('go-shop').onclick=e=>{e.stopPropagation();$('shop').style.display='flex';refreshHUD();};
  $('shop-close').onclick=e=>{e.stopPropagation();$('shop').style.display='none';};
- $('restart-btn').onclick=e=>{e.stopPropagation();restartGame();};
+ $('restart-btn').onclick=e=>{e.stopPropagation();$('menu').classList.remove('open');restartGame();};
  $('go-retry').onclick=e=>{e.stopPropagation();restartGame();};
+ $('menu-btn').onclick=e=>{e.stopPropagation();$('menu').classList.toggle('open');};
  renderer.setAnimationLoop(animation);
 }
 function animation(){
