@@ -2,153 +2,250 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Stack 3D - Gioco</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Stack 3D - Torre Dinamica, Power-Up & Shop</title>
 <style>
-body{margin:0;overflow:hidden;font-family:'Segoe UI',Tahoma,sans-serif;background:#1a1a2e;user-select:none}
-#ui{position:absolute;top:20px;left:50%;transform:translateX(-50%);text-align:center;color:#fff;pointer-events:none;z-index:10}
-#score{font-size:5rem;font-weight:800;text-shadow:0 4px 10px rgba(0,0,0,.5);margin:0}
-#high-score{font-size:1.2rem;opacity:.8;margin-top:5px}
-#instructions{position:absolute;bottom:40px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,.7);font-size:1.1rem;pointer-events:none;text-align:center}
+:root{--accent:#ff71ce}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;overflow:hidden;font-family:'Segoe UI',Tahoma,sans-serif;background:#1a1a2e;user-select:none;-webkit-user-select:none;color:#fff}
+canvas{display:block}
+#ui{position:fixed;top:12px;left:50%;transform:translateX(-50%);text-align:center;pointer-events:none;z-index:10;width:100%}
+#score{font-size:4.2rem;font-weight:800;text-shadow:0 4px 14px rgba(0,0,0,.6);margin:0;line-height:1}
+#high-score{font-size:1rem;opacity:.85}
+#stats{display:flex;gap:10px;justify-content:center;margin-top:6px;flex-wrap:wrap}
+.pill{background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.2);border-radius:999px;padding:4px 12px;font-size:.95rem}
+#special-banner{margin-top:8px;font-size:1.3rem;font-weight:800;text-shadow:0 2px 8px #000;min-height:1.6em}
+#sway-wrap{width:230px;margin:6px auto 0;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.25);border-radius:10px;padding:6px 10px}
+#sway-label{font-size:.72rem;letter-spacing:.06em;opacity:.9}
+#sway-bar{height:10px;background:#333;border-radius:999px;overflow:hidden;margin-top:4px;position:relative}
+#sway-fill{height:100%;width:8%;margin-left:46%;background:linear-gradient(90deg,#2ecc71,#f1c40f,#e74c3c);border-radius:999px}
+#sway-marker{position:absolute;left:50%;top:-2px;bottom:-2px;width:2px;background:#fff}
+#instructions{position:fixed;bottom:92px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,.85);font-size:1rem;pointer-events:none;text-align:center;z-index:10;text-shadow:0 2px 6px #000;width:92%}
+#tilt-controls{position:fixed;bottom:14px;left:12px;z-index:11;display:flex;gap:8px}
+#tilt-controls .col{display:flex;flex-direction:column;gap:8px}
+.tbtn{width:52px;height:52px;border-radius:14px;border:1px solid rgba(255,255,255,.35);background:rgba(0,0,0,.5);color:#fff;font-size:1.4rem;touch-action:none}
+.tbtn:active{background:rgba(255,255,255,.25)}
+#buttons{position:fixed;top:12px;right:12px;z-index:20;display:flex;flex-direction:column;gap:8px}
+.btn{cursor:pointer;border:1px solid rgba(255,255,255,.3);background:rgba(0,0,0,.55);color:#fff;border-radius:12px;padding:10px 14px;font-size:1rem}
+#flash{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:30;transition:opacity .25s}
+#gameover{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:40;background:rgba(0,0,0,.6)}
+#gameover .card{background:#16162a;border:1px solid rgba(255,255,255,.2);border-radius:18px;padding:26px 28px;text-align:center;max-width:92vw;width:380px}
+#shop{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:50;background:rgba(0,0,0,.65)}
+#shop .card{background:#16162a;border:1px solid rgba(255,255,255,.25);border-radius:18px;padding:20px;max-width:94vw;width:520px;max-height:88vh;overflow:auto}
+.shop-row{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 16px}
+.shop-item{flex:1 1 140px;border:1px solid rgba(255,255,255,.2);border-radius:12px;padding:10px;text-align:center;background:rgba(255,255,255,.05)}
+.shop-item.active{border-color:var(--accent);box-shadow:0 0 12px var(--accent)}
+.shop-item button{margin-top:8px;width:100%;padding:8px;border-radius:10px;border:0;cursor:pointer;font-weight:700}
+@media(max-width:600px){#score{font-size:3rem}.tbtn{width:58px;height:58px}}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
-<div id="ui"><div id="score">0</div><div id="high-score">Record: 0</div></div>
-<div id="instructions">Clicca o premi SPAZIO per far cadere il blocco</div>
+<div id="ui"><div id="score">0</div><div id="high-score">Record: 0</div>
+<div id="stats"><div class="pill" id="coins">monete 0</div><div class="pill" id="perfect-pill">Perfect x0</div><div class="pill" id="cement-pill" style="display:none">Cemento: 0</div></div>
+<div id="special-banner"></div>
+<div id="sway-wrap"><div id="sway-label">EQUILIBRIO - frecce / bottoni / giroscopio per stabilizzare</div><div id="sway-bar"><div id="sway-fill"></div><div id="sway-marker"></div></div></div></div>
+<div id="instructions">Clicca / Tocca / SPAZIO per fermare il blocco<br>Frecce o inclina il telefono per bilanciare la torre</div>
+<div id="tilt-controls"><div class="col"><button class="tbtn" id="t-left">L</button></div><div class="col"><button class="tbtn" id="t-up">U</button><button class="tbtn" id="t-down">D</button></div><div class="col"><button class="tbtn" id="t-right">R</button></div></div>
+<div id="buttons"><button class="btn" id="shop-btn">Shop</button><button class="btn" id="restart-btn">Restart</button></div>
+<div id="flash"></div>
+<div id="gameover"><div class="card"><h1>GAME OVER</h1><p id="go-reason"></p><p id="go-stats"></p><button class="btn" id="go-retry">Gioca ancora</button> <button class="btn" id="go-shop">Shop</button></div></div>
+<div id="shop"><div class="card"><h2 style="margin:0">Negozio <span id="shop-coins" style="float:right">0</span></h2><p style="opacity:.8">Temi e forme salvati in localStorage. Monete da blocchi oro e serie Perfect.</p><h3>Temi grafici</h3><div class="shop-row" id="themes"></div><h3>Forme blocchi</h3><div class="shop-row" id="shapes"></div><button class="btn" id="shop-close" style="width:100%">Chiudi</button></div></div>
 <script>
-let scene,camera,renderer;
-let stack=[];
-let overhangs=[];
-let score=0;
-let highScore=localStorage.getItem('stack_3d_highscore')||0;
-let gameEnded=false;
-let gameStarted=false;
-const boxHeight=1;
-let speed=0.15;
-let currentDirection='x';
-document.getElementById('high-score').innerText=`Record: ${highScore}`;
-function init(){
-scene=new THREE.Scene();
-scene.background=new THREE.Color(0x1a1a2e);
-const aspect=window.innerWidth/window.innerHeight;
-const d=20;
-camera=new THREE.OrthographicCamera(-d*aspect,d*aspect,d,-d,-100,1000);
-camera.position.set(20,20,20);
-camera.lookAt(0,0,0);
-const ambientLight=new THREE.AmbientLight(0xffffff,0.6);
-scene.add(ambientLight);
-const dirLight=new THREE.DirectionalLight(0xffffff,0.6);
-dirLight.position.set(10,20,10);
-scene.add(dirLight);
-renderer=new THREE.WebGLRenderer({antialias:true});
-renderer.setSize(window.innerWidth,window.innerHeight);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
-document.body.appendChild(renderer.domElement);
-addLayer(0,0,10,10);
-addLayer(0,0,10,10);
-window.addEventListener('resize',onWindowResize);
-window.addEventListener('pointerdown',handleClick);
-window.addEventListener('keydown',(e)=>{if(e.code==='Space')handleClick();});
-renderer.setAnimationLoop(animation);
+/* STACK 3D punti 3..7 GDD */
+let scene,camera,renderer,towerGroup,ambientLight,dirLight;
+let stack=[],overhangs=[],particles=[];
+let score=0,highScore=parseInt(localStorage.getItem('stack_3d_highscore')||'0',10);
+let coins=parseInt(localStorage.getItem('stack3d_coins')||'0',10);
+let perfectStreak=0,bestStreak=parseInt(localStorage.getItem('stack3d_beststreak')||'0',10);
+let gameEnded=false,gameStarted=false,toppleLock=false;
+const boxHeight=1;let speed=0.15,currentDirection='x';
+const PERFECT_TOL=0.3;
+let sway={ax:0,az:0,vx:0,vz:0};
+let cementLeft=0,tiltInput={x:0,z:0},shakeTime=0,shakeMag=0;
+let currentSpecial=null,specialCountdown=5,blinkT=0;
+const THEMES={
+ classic:{name:'Classico',price:0,bg:0x1a1a2e,amb:0xffffff,ambI:.6,dir:0xffffff,dirI:.6,fog:null,accent:'#ffffff',part:['#ffffff','#ffe27a']},
+ vaporwave:{name:'Vaporwave Neon',price:50,bg:0x2b1055,amb:0xff71ce,ambI:.7,dir:0x01cdfe,dirI:.9,fog:0x2b1055,accent:'#ff71ce',part:['#ff71ce','#01cdfe','#fffb96']},
+ cyberpunk:{name:'Cyberpunk',price:100,bg:0x0b0e1a,amb:0x00ffe7,ambI:.55,dir:0xff0055,dirI:.9,fog:0x0b0e1a,accent:'#00ffe7',part:['#00ffe7','#ff0055','#f9f002']},
+ pastel:{name:'Pastel Sweet',price:75,bg:0x3a2b4d,amb:0xffd6e8,ambI:.8,dir:0xfff3b0,dirI:.7,fog:null,accent:'#ffd6e8',part:['#ffd6e8','#c1f0f6','#fff3b0']}
+};
+const SHAPES={cube:{name:'Cubi',price:0},cylinder:{name:'Cilindri',price:50},crystal:{name:'Cristalli',price:100}};
+let themeId=localStorage.getItem('stack3d_theme')||'classic';
+let shapeId=localStorage.getItem('stack3d_shape')||'cube';
+let owned=[];try{owned=JSON.parse(localStorage.getItem('stack3d_owned')||'["classic","cube"]');}catch(e){owned=['classic','cube'];}
+if(!THEMES[themeId])themeId='classic';if(!SHAPES[shapeId])shapeId='cube';
+const $=id=>document.getElementById(id);
+function saveMeta(){localStorage.setItem('stack3d_coins',coins);localStorage.setItem('stack3d_theme',themeId);localStorage.setItem('stack3d_shape',shapeId);localStorage.setItem('stack3d_owned',JSON.stringify(owned));localStorage.setItem('stack3d_beststreak',bestStreak);}
+function vibrate(p){try{if(navigator.vibrate)navigator.vibrate(p);}catch(e){}}
+function flash(op,color){const f=$('flash');f.style.background=color||'#fff';f.style.opacity=op;setTimeout(()=>f.style.opacity=0,80);}
+function shake(m,t){shakeMag=Math.max(shakeMag,m);shakeTime=Math.max(shakeTime,t);}
+function banner(txt,ms){const b=$('special-banner');b.textContent=txt;clearTimeout(b._t);b._t=setTimeout(()=>b.textContent='',ms||2200);}
+function refreshHUD(){$('score').textContent=score;$('high-score').textContent='Record: '+highScore;$('coins').textContent='monete '+coins;$('shop-coins').textContent='monete '+coins;$('perfect-pill').textContent='Perfect x'+perfectStreak;const c=$('cement-pill');if(cementLeft>0){c.style.display='inline-block';c.textContent='Cemento: '+cementLeft;}else c.style.display='none';}
+function makeMesh(w,h,d,special){
+ let geo;
+ if(shapeId==='cylinder')geo=new THREE.CylinderGeometry(.5,.5,1,28);
+ else if(shapeId==='crystal')geo=new THREE.CylinderGeometry(.5,.5,1,6);
+ else geo=new THREE.BoxGeometry(1,1,1);
+ let color;
+ const lvl=stack.length;
+ if(special==='tnt')color=new THREE.Color(0xe74c3c);
+ else if(special==='cement')color=new THREE.Color(0x95a5a6);
+ else if(special==='magnet')color=new THREE.Color(0x3498db);
+ else if(special==='coin')color=new THREE.Color(0xf1c40f);
+ else color=new THREE.Color('hsl('+((lvl*14)%360)+', 75%, 60%)');
+ const mat=new THREE.MeshLambertMaterial({color:color,emissive:special==='tnt'?0x550000:0x000000});
+ const m=new THREE.Mesh(geo,mat);m.scale.set(Math.max(w,.001),h,Math.max(d,.001));m.userData.special=special||null;return m;
 }
-function generateColor(hue){return new THREE.Color(`hsl(${hue%360}, 75%, 60%)`);}
-function addLayer(x,z,width,depth){
-const y=boxHeight*stack.length;
-const color=generateColor(stack.length*12);
-const geometry=new THREE.BoxGeometry(width,boxHeight,depth);
-const material=new THREE.MeshLambertMaterial({color});
-const mesh=new THREE.Mesh(geometry,material);
-mesh.position.set(x,y,z);
-scene.add(mesh);
-stack.push({mesh,width,depth,x,z});
+function applyTheme(id){themeId=id;const t=THEMES[id];scene.background=new THREE.Color(t.bg);scene.fog=t.fog?new THREE.Fog(t.fog,40,110):null;ambientLight.color.set(t.amb);ambientLight.intensity=t.ambI;dirLight.color.set(t.dir);dirLight.intensity=t.dirI;document.documentElement.style.setProperty('--accent',t.accent);saveMeta();}
+function addLayer(x,z,w,d,special){const y=boxHeight*stack.length;const mesh=makeMesh(w,boxHeight,d,special);mesh.position.set(x,y,z);towerGroup.add(mesh);stack.push({mesh:mesh,width:w,depth:d,x:x,z:z,special:special||null});}
+const partGeo=new THREE.BoxGeometry(.22,.22,.22);
+function spawnBurst(pos,colors,n,power){n=n||14;power=power||3;for(let i=0;i<n;i++){const c=colors[Math.floor(Math.random()*colors.length)];const m=new THREE.Mesh(partGeo,new THREE.MeshBasicMaterial({color:new THREE.Color(c)}));m.position.copy(pos);scene.add(m);particles.push({mesh:m,vx:(Math.random()-.5)*power,vy:Math.random()*power+1,vz:(Math.random()-.5)*power,life:50+Math.random()*30});}if(particles.length>400){const p=particles.splice(0,particles.length-400);p.forEach(o=>scene.remove(o.mesh));}}
+function addOverhang(x,z,w,d,color){const y=boxHeight*(stack.length-1);const mesh=makeMesh(w,boxHeight,d,null);mesh.material=new THREE.MeshLambertMaterial({color:color||0xffffff});mesh.position.set(x,y,z);towerGroup.updateMatrixWorld(true);const wp=new THREE.Vector3(x,y,z).applyMatrix4(towerGroup.matrixWorld);mesh.position.copy(wp);scene.add(mesh);spawnBurst(wp,THEMES[themeId].part,10);overhangs.push({mesh:mesh,speedY:0,rx:(Math.random()-.5)*.08,rz:(Math.random()-.5)*.08,vx:(Math.random()-.5)*.3,vz:(Math.random()-.5)*.3});}
+function pickSpecial(){if(score<4)return null;specialCountdown--;if(specialCountdown>0)return null;specialCountdown=5+Math.floor(Math.random()*5);const r=Math.random();if(r<.28)return 'coin';if(r<.5)return 'cement';if(r<.72)return 'magnet';return 'tnt';}
+function centerOfMass(){if(!stack.length)return{x:0,z:0};let sx=0,sz=0;stack.forEach(l=>{sx+=l.mesh.position.x;sz+=l.mesh.position.z;});return{x:sx/stack.length,z:sz/stack.length};}
+function handlePlace(){
+ if(gameEnded){restartGame();return;}
+ if($('shop').style.display==='flex')return;
+ if(!gameStarted){gameStarted=true;$('instructions').style.display='none';}
+ const top=stack[stack.length-1],prev=stack[stack.length-2];
+ let delta=top.mesh.position[currentDirection]-prev.mesh.position[currentDirection];
+ let snapTol=PERFECT_TOL;
+ if(top.special==='magnet'){delta*=0.25;top.mesh.position[currentDirection]=prev.mesh.position[currentDirection]+delta;snapTol=1.6;}
+ const size=currentDirection==='x'?top.width:top.depth;
+ const overlap=size-Math.abs(delta);
+ if(overlap>0){
+  const isPerfect=Math.abs(delta)<snapTol;
+  if(isPerfect){
+   top.mesh.position[currentDirection]=prev.mesh.position[currentDirection];top.x=top.mesh.position.x;top.z=top.mesh.position.z;
+   perfectStreak++;bestStreak=Math.max(bestStreak,perfectStreak);coins+=1;
+   if(perfectStreak%3===0){coins+=5;banner('PERFECT x'+perfectStreak+'! +6 monete');}else banner('PERFECT!');
+   flash(.45);vibrate(50);
+   const wp=new THREE.Vector3();top.mesh.getWorldPosition(wp);spawnBurst(wp,['#ffffff'].concat(THEMES[themeId].part),22,4);
+  }else{
+   perfectStreak=0;
+   const cutW=currentDirection==='x'?overlap:top.width,cutD=currentDirection==='z'?overlap:top.depth;
+   top.width=cutW;top.depth=cutD;top.mesh.scale.x=Math.max(cutW,.001);top.mesh.scale.z=Math.max(cutD,.001);
+   top.mesh.position[currentDirection]-=delta/2;
+   const overSize=Math.abs(delta),shift=(overlap/2+overSize/2)*Math.sign(delta);
+   const ox=currentDirection==='x'?top.mesh.position.x+shift:top.mesh.position.x;
+   const oz=currentDirection==='z'?top.mesh.position.z+shift:top.mesh.position.z;
+   addOverhang(ox,oz,currentDirection==='x'?overSize:top.width,currentDirection==='z'?overSize:top.depth,top.mesh.material.color.clone());
+   vibrate(20);
+  }
+  const placed=top.special;top.special=null;
+  if(placed==='coin'){coins+=5;banner('+6 monete!');vibrate(30);}
+  if(placed==='cement'){cementLeft=5;sway.ax=sway.az=sway.vx=sway.vz=0;banner('CEMENTO! Torre solida per 5 turni');flash(.3,'#95a5a6');}
+  if(placed==='magnet'&&!isPerfect)banner('Magnete: attrazione assistita!');
+  if(placed==='tnt')detonateTNT();
+  if(cementLeft>0&&placed!=='cement')cementLeft--;
+  score++;if(score>highScore){highScore=score;localStorage.setItem('stack_3d_highscore',highScore);}
+  saveMeta();refreshHUD();
+  currentDirection=currentDirection==='x'?'z':'x';speed+=0.005;
+  currentSpecial=pickSpecial();
+  if(currentSpecial)banner({tnt:'TNT in arrivo!',cement:'CEMENTO in arrivo!',magnet:'MAGNETE in arrivo!',coin:'MONETA in arrivo!'}[currentSpecial],1800);
+  addLayer(currentDirection==='x'?-20:top.mesh.position.x,currentDirection==='z'?-20:top.mesh.position.z,top.width,top.depth,currentSpecial);
+ }else{endGame('miss');}
 }
-function addOverhang(x,z,width,depth){
-const y=boxHeight*(stack.length-1);
-const color=stack[stack.length-1].mesh.material.color;
-const geometry=new THREE.BoxGeometry(width,boxHeight,depth);
-const material=new THREE.MeshLambertMaterial({color});
-const mesh=new THREE.Mesh(geometry,material);
-mesh.position.set(x,y,z);
-scene.add(mesh);
-overhangs.push({mesh,speedY:0});
+function detonateTNT(){
+ banner('BOOM! La TNT ripara la torre!');flash(.6,'#ff3b30');shake(.9,.6);vibrate([60,40,60]);
+ const wp=new THREE.Vector3();stack[stack.length-1].mesh.getWorldPosition(wp);spawnBurst(wp,['#ff3b30','#ff9500','#ffe27a'],40,7);
+ let removed=0;while(stack.length>3&&removed<2){const l=stack.pop();const p=new THREE.Vector3();l.mesh.getWorldPosition(p);spawnBurst(p,['#ff3b30','#555555'],16,5);towerGroup.remove(l.mesh);removed++;}
+ const nt=stack[stack.length-1];if(nt){const pv=stack[stack.length-2];if(pv){nt.mesh.position.x=pv.mesh.position.x;nt.mesh.position.z=pv.mesh.position.z;nt.x=nt.mesh.position.x;nt.z=nt.mesh.position.z;}}
+ sway.ax=sway.az=sway.vx=sway.vz=0;towerGroup.rotation.set(0,0,0);
 }
-function handleClick(){
-if(gameEnded){restartGame();return;}
-if(!gameStarted){gameStarted=true;document.getElementById('instructions').style.display='none';}
-const topLayer=stack[stack.length-1];
-const previousLayer=stack[stack.length-2];
-const delta=topLayer.mesh.position[currentDirection]-previousLayer.mesh.position[currentDirection];
-const size=currentDirection==='x'?topLayer.width:topLayer.depth;
-const overlap=size-Math.abs(delta);
-if(overlap>0){
-const cutWidth=currentDirection==='x'?overlap:topLayer.width;
-const cutDepth=currentDirection==='z'?overlap:topLayer.depth;
-if(Math.abs(delta)<0.3){
-topLayer.mesh.position[currentDirection]=previousLayer.mesh.position[currentDirection];
-topLayer.x=topLayer.mesh.position.x;
-topLayer.z=topLayer.mesh.position.z;
-}else{
-topLayer.width=cutWidth;
-topLayer.depth=cutDepth;
-topLayer.mesh.scale[currentDirection]=overlap/size;
-topLayer.mesh.position[currentDirection]-=delta/2;
-const overhangSize=Math.abs(delta);
-const overhangShift=(overlap/2+overhangSize/2)*Math.sign(delta);
-const overhangX=currentDirection==='x'?topLayer.mesh.position.x+overhangShift:topLayer.mesh.position.x;
-const overhangZ=currentDirection==='z'?topLayer.mesh.position.z+overhangShift:topLayer.mesh.position.z;
-const overhangW=currentDirection==='x'?overhangSize:topLayer.width;
-const overhangD=currentDirection==='z'?overhangSize:topLayer.depth;
-addOverhang(overhangX,overhangZ,overhangW,overhangD);
-}
-score++;
-document.getElementById('score').innerText=score;
-if(score>highScore){highScore=score;localStorage.setItem('stack_3d_highscore',highScore);document.getElementById('high-score').innerText=`Record: ${highScore}`;}
-currentDirection=currentDirection==='x'?'z':'x';
-speed+=0.005;
-addLayer(currentDirection==='x'?-20:topLayer.mesh.position.x,currentDirection==='z'?-20:topLayer.mesh.position.z,topLayer.width,topLayer.depth);
-}else{endGame();}
-}
-
-function endGame(){
-gameEnded=true;
-document.getElementById('instructions').innerText="GAME OVER! Clicca per ricominciare.";
-document.getElementById('instructions').style.display='block';
-const topLayer=stack[stack.length-1];
-addOverhang(topLayer.mesh.position.x,topLayer.mesh.position.z,topLayer.width,topLayer.depth);
-scene.remove(topLayer.mesh);
+function endGame(reason){
+ if(gameEnded)return;gameEnded=true;vibrate(80);shake(1,.7);flash(.5,'#ff0044');
+ const top=stack[stack.length-1];
+ if(reason==='miss'&&top){addOverhang(top.mesh.position.x,top.mesh.position.z,top.width,top.depth,top.mesh.material.color.clone());towerGroup.remove(top.mesh);}
+ $('go-reason').textContent=reason==='topple'?'La torre e COLLASSATA per lo sbilanciamento!':'Hai mancato il blocco!';
+ $('go-stats').innerHTML='Punteggio: <b>'+score+'</b> - Record: <b>'+highScore+'</b><br>monete '+coins+' - best streak x'+bestStreak;
+ $('gameover').style.display='flex';$('instructions').innerText='GAME OVER! Clicca per ricominciare.';$('instructions').style.display='block';
 }
 function restartGame(){
-stack.forEach(layer=>scene.remove(layer.mesh));
-overhangs.forEach(o=>scene.remove(o.mesh));
-stack=[];overhangs=[];score=0;speed=0.15;
-gameEnded=false;gameStarted=false;currentDirection='x';
-document.getElementById('score').innerText=score;
-document.getElementById('instructions').innerText="Clicca o premi SPAZIO per far cadere il blocco";
-addLayer(0,0,10,10);
-addLayer(0,0,10,10);
-camera.position.set(20,20,20);
-camera.lookAt(0,0,0);
+ stack.forEach(l=>towerGroup.remove(l.mesh));overhangs.forEach(o=>scene.remove(o.mesh));particles.forEach(p=>scene.remove(p.mesh));
+ stack=[];overhangs=[];particles=[];score=0;speed=.15;gameEnded=false;gameStarted=false;currentDirection='x';
+ sway={ax:0,az:0,vx:0,vz:0};cementLeft=0;currentSpecial=null;specialCountdown=5;perfectStreak=0;toppleLock=false;
+ shakeTime=shakeMag=0;towerGroup.rotation.set(0,0,0);
+ $('gameover').style.display='none';$('special-banner').textContent='';$('score').textContent='0';
+ $('instructions').innerText='Clicca / Tocca / SPAZIO per fermare il blocco';$('instructions').style.display='block';
+ addLayer(0,0,10,10,null);addLayer(0,0,10,10,null);
+ camera.position.set(20,20,20);camera.lookAt(0,0,0);refreshHUD();
+}
+function buildShop(){
+ const tw=$('themes');tw.innerHTML='';
+ Object.keys(THEMES).forEach(id=>{const t=THEMES[id];const d=document.createElement('div');d.className='shop-item'+(id===themeId?' active':'');d.innerHTML='<b>'+t.name+'</b><br><small>'+(t.price===0?'Gratis':'monete '+t.price)+'</small><br>';const b=document.createElement('button');b.textContent=owned.indexOf(id)>=0?(id===themeId?'Attivo':'Usa'):'Compra';b.onclick=()=>{if(owned.indexOf(id)<0){if(coins<t.price){alert('Monete insufficienti! Raccogli monete oro e perfect.');return;}coins-=t.price;owned.push(id);}applyTheme(id);refreshHUD();buildShop();};d.appendChild(b);tw.appendChild(d);});
+ const sw=$('shapes');sw.innerHTML='';
+ Object.keys(SHAPES).forEach(id=>{const s=SHAPES[id];const d=document.createElement('div');d.className='shop-item'+(id===shapeId?' active':'');d.innerHTML='<b>'+s.name+'</b><br><small>'+(s.price===0?'Gratis':'monete '+s.price)+'</small><br>';const b=document.createElement('button');b.textContent=owned.indexOf(id)>=0?(id===shapeId?'Attivo':'Usa'):'Compra';b.onclick=()=>{if(owned.indexOf(id)<0){if(coins<s.price){alert('Monete insufficienti!');return;}coins-=s.price;owned.push(id);}shapeId=id;saveMeta();refreshHUD();buildShop();banner('Forma: '+s.name);};d.appendChild(b);sw.appendChild(d);});
+}
+function bindHold(id,down,up){const el=$(id);el.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();down();});el.addEventListener('pointerup',e=>{e.preventDefault();up();});el.addEventListener('pointerleave',up);el.addEventListener('pointercancel',up);}
+function init(){
+ scene=new THREE.Scene();
+ const aspect=innerWidth/innerHeight,d=20;
+ camera=new THREE.OrthographicCamera(-d*aspect,d*aspect,d,-d,-100,1000);
+ camera.position.set(20,20,20);camera.lookAt(0,0,0);
+ ambientLight=new THREE.AmbientLight(0xffffff,.6);scene.add(ambientLight);
+ dirLight=new THREE.DirectionalLight(0xffffff,.6);dirLight.position.set(10,20,10);scene.add(dirLight);
+ towerGroup=new THREE.Group();scene.add(towerGroup);
+ renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));document.body.appendChild(renderer.domElement);
+ applyTheme(themeId);
+ addLayer(0,0,10,10,null);addLayer(0,0,10,10,null);refreshHUD();buildShop();
+ addEventListener('resize',()=>{const a=innerWidth/innerHeight,dd=20;camera.left=-dd*a;camera.right=dd*a;camera.top=dd;camera.bottom=-dd;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+ addEventListener('pointerdown',e=>{if(e.target.closest('button')||e.target.closest('#shop')||e.target.closest('#gameover'))return;handlePlace();});
+ addEventListener('keydown',e=>{if(e.code==='Space'){e.preventDefault();handlePlace();}if(e.code==='ArrowLeft')tiltInput.z=-1;if(e.code==='ArrowRight')tiltInput.z=1;if(e.code==='ArrowUp')tiltInput.x=-1;if(e.code==='ArrowDown')tiltInput.x=1;if(e.code==='KeyR')restartGame();});
+ addEventListener('keyup',e=>{if(e.code==='ArrowLeft'||e.code==='ArrowRight')tiltInput.z=0;if(e.code==='ArrowUp'||e.code==='ArrowDown')tiltInput.x=0;});
+ bindHold('t-left',()=>tiltInput.z=-1,()=>tiltInput.z=0);bindHold('t-right',()=>tiltInput.z=1,()=>tiltInput.z=0);
+ bindHold('t-up',()=>tiltInput.x=-1,()=>tiltInput.x=0);bindHold('t-down',()=>tiltInput.x=1,()=>tiltInput.x=0);
+ try{addEventListener('deviceorientation',e=>{if(e.gamma==null||e.beta==null)return;tiltInput.z=Math.max(-1,Math.min(1,e.gamma/25));tiltInput.x=Math.max(-1,Math.min(1,(e.beta-40)/25));});}catch(err){}
+ $('shop-btn').onclick=e=>{e.stopPropagation();$('shop').style.display='flex';refreshHUD();};
+ $('go-shop').onclick=e=>{e.stopPropagation();$('shop').style.display='flex';refreshHUD();};
+ $('shop-close').onclick=e=>{e.stopPropagation();$('shop').style.display='none';};
+ $('restart-btn').onclick=e=>{e.stopPropagation();restartGame();};
+ $('go-retry').onclick=e=>{e.stopPropagation();restartGame();};
+ renderer.setAnimationLoop(animation);
 }
 function animation(){
-if(!gameEnded&&stack.length>1){
-const topLayer=stack[stack.length-1];
-topLayer.mesh.position[currentDirection]+=speed;
-if(topLayer.mesh.position[currentDirection]>20){topLayer.mesh.position[currentDirection]=-20;}
-}
-overhangs.forEach(o=>{o.speedY-=0.05;o.mesh.position.y+=o.speedY;o.mesh.rotation.x+=0.02;o.mesh.rotation.z+=0.02;});
-const targetY=20+(stack.length-2)*boxHeight;
-if(camera.position.y<targetY){camera.position.y+=(targetY-camera.position.y)*0.1;}
-renderer.render(scene,camera);
-}
-function onWindowResize(){
-const aspect=window.innerWidth/window.innerHeight;
-const d=20;
-camera.left=-d*aspect;camera.right=d*aspect;camera.top=d;camera.bottom=-d;
-camera.updateProjectionMatrix();
-renderer.setSize(window.innerWidth,window.innerHeight);
+ const dt=1/60;blinkT+=dt;
+ if(!gameEnded&&stack.length>1){
+  const top=stack[stack.length-1];
+  if(top.special==='tnt'){top.mesh.material.emissive.setHex(Math.sin(blinkT*14)>0?0xff0000:0x330000);}
+  if(top.special==='coin')top.mesh.rotation.y+=0.06;
+  if(top.special==='magnet'&&stack.length>1){const prev=stack[stack.length-2];const tg=prev.mesh.position[currentDirection];top.mesh.position[currentDirection]+=(tg-top.mesh.position[currentDirection])*0.02;}
+  top.mesh.position[currentDirection]+=speed*(top.special==='cement'?0.85:1);
+  if(top.mesh.position[currentDirection]>20)top.mesh.position[currentDirection]=-20;
+ }
+ overhangs.forEach(o=>{o.speedY-=0.05;o.mesh.position.y+=o.speedY;o.mesh.position.x+=o.vx;o.mesh.position.z+=o.vz;o.mesh.rotation.x+=o.rx;o.mesh.rotation.z+=o.rz;});
+ overhangs=overhangs.filter(o=>{if(o.mesh.position.y<-30){scene.remove(o.mesh);return false;}return true;});
+ particles.forEach(p=>{p.life--;p.mesh.position.x+=p.vx*.08;p.mesh.position.y+=p.vy*.08;p.mesh.position.z+=p.vz*.08;p.vy-=.15;p.mesh.rotation.x+=.1;p.mesh.scale.multiplyScalar(.985);});
+ particles=particles.filter(p=>{if(p.life<=0){scene.remove(p.mesh);return false;}return true;});
+ if(stack.length>2&&!gameEnded){
+  const h=stack.length,com=centerOfMass();
+  const startH=8,active=Math.max(0,(h-startH)/10);
+  const k=0.004+active*0.01;
+  const tZ=-com.x*k*3,tX=com.z*k*3;
+  if(cementLeft>0){sway.vx+=(0-sway.ax)*.15-sway.vx*.25;sway.vz+=(0-sway.az)*.15-sway.vz*.25;sway.ax+=sway.vx*.016*60*.016;sway.az+=sway.vz*.016*60*.016;}
+  else{
+   const ctrl=.0035;sway.vx+=(-tiltInput.x*ctrl);sway.vz+=(-tiltInput.z*ctrl);
+   const stiff=.012+active*.02,damp=.985-Math.min(.02,active*.015);
+   sway.vx+=(tX-sway.ax)*stiff;sway.vz+=(tZ-sway.az)*stiff;sway.vx*=damp;sway.vz*=damp;sway.ax+=sway.vx;sway.az+=sway.vz;
+   const tiltMag=Math.sqrt(sway.ax*sway.ax+sway.az*sway.az);
+   const comMag=Math.sqrt(com.x*com.x+com.z*com.z);
+   const baseW=Math.min(stack[0].width,stack[0].depth),crit=.32;
+   const pct=Math.min(1,tiltMag/crit);
+   const fill=$('sway-fill');fill.style.width=(8+pct*92)+'%';fill.style.marginLeft=((100-(8+pct*92))/2)+'%';
+   $('sway-wrap').style.borderColor=pct>.7?'#e74c3c':pct>.4?'#f1c40f':'rgba(255,255,255,.25)';
+   if(!toppleLock&&((h>startH&&tiltMag>crit)||comMag>baseW*.75)){toppleLock=true;sway.ax*=2;sway.az*=2;shake(1.2,.8);setTimeout(()=>{endGame('topple');},480);}
+  }
+ }
+ towerGroup.rotation.x=sway.ax;towerGroup.rotation.z=sway.az;
+ const targetY=20+(stack.length-2)*boxHeight;
+ if(camera.position.y<targetY)camera.position.y+=(targetY-camera.position.y)*.08;
+ const baseY=camera.position.y;
+ let sx=0,sy=0;
+ if(shakeTime>0){shakeTime-=dt;sx=(Math.random()-.5)*shakeMag;sy=(Math.random()-.5)*shakeMag;if(shakeTime<=0)shakeMag=0;}
+ camera.position.x=20+sx;camera.position.y=baseY+sy;camera.position.z=20+sx*.5;
+ camera.lookAt(0,baseY-20,0);
+ renderer.render(scene,camera);
 }
 init();
-</script>
-</body>
-</html>
+</script></body></html>
