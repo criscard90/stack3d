@@ -68,6 +68,9 @@ let bombs=0,bombProgress=0;const BOMB_MAX=3,BOMB_EVERY=10,BOMB_POWER=10;
 let gameEnded=false,gameStarted=false;
 const boxHeight=1;let speed=0.15,currentDirection='x';
 const PERFECT_TOL=0.3;
+const COIN_GOLD_TOL=0.1,COIN_EDGE_RATIO=0.25;
+const COIN_GOLD_MIN=15,COIN_GOLD_MAX=20,COIN_STD_MIN=3,COIN_STD_MAX=5;
+function randInt(a,b){return a+Math.floor(Math.random()*(b-a+1));}
 
 let shakeTime=0,shakeMag=0;
 let currentSpecial=null,specialCountdown=5,blinkT=0;
@@ -89,20 +92,28 @@ function flash(op,color){const f=$('flash');f.style.background=color||'#fff';f.s
 function shake(m,t){shakeMag=Math.max(shakeMag,m);shakeTime=Math.max(shakeTime,t);}
 function banner(txt,ms){const b=$('special-banner');b.textContent=txt;clearTimeout(b._t);b._t=setTimeout(()=>b.textContent='',ms||2200);}
 function refreshHUD(){$('score').textContent=score;$('high-score').textContent='Record: '+highScore;$('coins').textContent='🪙 '+coins;$('perfect-pill').textContent='Perfect x'+perfectStreak;$('perfect-pill').classList.toggle('hot',perfectStreak>0);$('shop-coins').textContent='monete '+coins;const bb=$('bomb-btn'),bf=$('bomb-fill'),bl=$('bomb-label');if(bb){if(bl)bl.textContent='💣 '+bombs+'/'+BOMB_MAX;else bb.textContent='💣 '+bombs+'/'+BOMB_MAX;bb.disabled=bombs<=0||gameEnded;bb.classList.toggle('ready',bombs>0);}if(bf){bf.style.width=(bombs>=BOMB_MAX?100:(bombProgress/BOMB_EVERY*100))+'%';}}
+function specialTexture(kind){
+ const c=document.createElement('canvas');c.width=c.height=128;const g=c.getContext('2d');
+ if(kind==='coin'){const gr=g.createLinearGradient(0,0,128,128);gr.addColorStop(0,'#fff6b0');gr.addColorStop(.5,'#ffd700');gr.addColorStop(1,'#b8860b');g.fillStyle=gr;g.fillRect(0,0,128,128);g.strokeStyle='#7a5c00';g.lineWidth=10;g.strokeRect(5,5,118,118);g.fillStyle='#7a5c00';g.font='bold 72px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText('$',64,70);}
+ else if(kind==='tnt'){g.fillStyle='#c0392b';g.fillRect(0,0,128,128);g.fillStyle='#7b1f14';g.fillRect(0,0,128,14);g.fillRect(0,114,128,14);g.fillRect(0,0,14,128);g.fillRect(114,0,14,128);g.fillStyle='#fff';g.font='bold 44px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText('TNT',64,66);g.font='bold 30px sans-serif';g.fillText('!!!',64,98);}
+ else if(kind==='magnet'){g.fillStyle='#0b5fa5';g.fillRect(0,0,128,128);g.fillStyle='#e74c3c';g.fillRect(0,0,128,26);g.fillRect(0,102,128,26);g.fillStyle='#fff';g.font='bold 64px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText('U',64,66);g.font='bold 22px sans-serif';g.fillText('N+S',64,100);}
+ return new THREE.CanvasTexture(c);
+}
 function makeMesh(w,h,d,special){
  let geo;
  if(shapeId==='cylinder')geo=new THREE.CylinderGeometry(.5,.5,1,28);
  else if(shapeId==='crystal')geo=new THREE.CylinderGeometry(.5,.5,1,6);
  else geo=new THREE.BoxGeometry(1,1,1);
- let color;
+ let color,emissive=0x000000,map=null;
  const lvl=stack.length;
- if(special==='tnt')color=new THREE.Color(0xe74c3c);
-
- else if(special==='magnet')color=new THREE.Color(0x3498db);
- else if(special==='coin')color=new THREE.Color(0xf1c40f);
+ if(special==='tnt'){color=new THREE.Color(0xff2d20);emissive=0x660000;map=specialTexture('tnt');}
+ else if(special==='magnet'){color=new THREE.Color(0x00c3ff);emissive=0x004466;map=specialTexture('magnet');}
+ else if(special==='coin'){color=new THREE.Color(0xffd700);emissive=0x7a5c00;map=specialTexture('coin');}
  else color=new THREE.Color('hsl('+((lvl*14)%360)+', 75%, 60%)');
- const mat=new THREE.MeshLambertMaterial({color:color,emissive:special==='tnt'?0x550000:0x000000});
- const m=new THREE.Mesh(geo,mat);m.scale.set(Math.max(w,.001),h,Math.max(d,.001));m.userData.special=special||null;return m;
+ const mat=new THREE.MeshLambertMaterial({color:color,emissive:emissive,map:map});
+ const m=new THREE.Mesh(geo,mat);m.scale.set(Math.max(w,.001),h,Math.max(d,.001));m.userData.special=special||null;
+ if(special){try{const eg=new THREE.EdgesGeometry(geo);const lc=special==='coin'?0xfff176:(special==='tnt'?0xffffff:0x002233);const lm=new THREE.LineBasicMaterial({color:lc});const lines=new THREE.LineSegments(eg,lm);lines.scale.set(1.02,1.02,1.02);m.add(lines);}catch(e){}}
+ return m;
 }
 function applyTheme(id){themeId=id;const t=THEMES[id];scene.background=new THREE.Color(t.bg);scene.fog=t.fog?new THREE.Fog(t.fog,40,110):null;ambientLight.color.set(t.amb);ambientLight.intensity=t.ambI;dirLight.color.set(t.dir);dirLight.intensity=t.dirI;document.documentElement.style.setProperty('--accent',t.accent);saveMeta();}
 function addLayer(x,z,w,d,special){const y=boxHeight*stack.length;const mesh=makeMesh(w,boxHeight,d,special);mesh.position.set(x,y,z);towerGroup.add(mesh);stack.push({mesh:mesh,width:w,depth:d,x:x,z:z,special:special||null});}
@@ -120,7 +131,9 @@ function handlePlace(){
  let snapTol=PERFECT_TOL;
  if(top.special==='magnet'){delta*=0.25;top.mesh.position[currentDirection]=prev.mesh.position[currentDirection]+delta;snapTol=1.6;}
  const size=currentDirection==='x'?top.width:top.depth;
- const overlap=size-Math.abs(delta);
+ const placeErr=Math.abs(delta);
+ const overlap=size-placeErr;
+ const overlapRatio=size>0?overlap/size:0;
  if(overlap>0){
   const isPerfect=Math.abs(delta)<snapTol;
   if(isPerfect){
@@ -141,14 +154,18 @@ function handlePlace(){
    vibrate(20);
   }
   const placed=top.special;top.special=null;
-  if(placed==='coin'){coins+=5;banner('+6 monete!');vibrate(30);}
+  if(placed==='coin'){
+   if(placeErr<COIN_GOLD_TOL){const rw=randInt(COIN_GOLD_MIN,COIN_GOLD_MAX);coins+=rw;banner('PERFETTO DORATO! +'+rw+' monete');flash(.7,'#ffd700');shake(.4,.3);vibrate([30,30,60]);const gp=new THREE.Vector3();top.mesh.getWorldPosition(gp);spawnBurst(gp,['#ffd700','#fff6b0','#ffffff','#ff9500'],42,6);}
+   else if(overlapRatio<COIN_EDGE_RATIO){banner('Moneta frantumata! +0 monete');flash(.4,'#888888');shake(.5,.3);vibrate(60);const sp=new THREE.Vector3();top.mesh.getWorldPosition(sp);spawnBurst(sp,['#888888','#555555','#cccccc'],30,5);}
+   else{const rw=randInt(COIN_STD_MIN,COIN_STD_MAX);coins+=rw;banner('Moneta opaca +'+rw+' monete');vibrate(30);}
+  }
   if(placed==='magnet'&&!isPerfect)banner('Magnete: attrazione assistita!');
   if(placed==='tnt')detonateTNT();
   score++;if(score>highScore){highScore=score;localStorage.setItem('stack_3d_highscore',highScore);}
   saveMeta();refreshHUD();
   currentDirection=currentDirection==='x'?'z':'x';speed+=0.005;
   currentSpecial=pickSpecial();
-  if(currentSpecial)banner({tnt:'TNT in arrivo!',magnet:'MAGNETE in arrivo!',coin:'MONETA in arrivo!'}[currentSpecial],1800);
+  if(currentSpecial)banner({tnt:'---- TNT IN ARRIVO ----',magnet:'---- MAGNETE IN ARRIVO ----',coin:'---- BLOCCO DORATO IN ARRIVO ----'}[currentSpecial],1800);
   addLayer(currentDirection==='x'?-20:top.mesh.position.x,currentDirection==='z'?-20:top.mesh.position.z,top.width,top.depth,currentSpecial);
  }else{endGame();}
 }
@@ -225,8 +242,9 @@ function animation(){
  const dt=1/60;blinkT+=dt;
  if(!gameEnded&&stack.length>1){
   const top=stack[stack.length-1];
-  if(top.special==='tnt'){top.mesh.material.emissive.setHex(Math.sin(blinkT*14)>0?0xff0000:0x330000);}
-  if(top.special==='coin')top.mesh.rotation.y+=0.06;
+  if(top.special==='tnt'){top.mesh.material.emissive.setHex(Math.sin(blinkT*18)>0?0xff2222:0x440000);const puls=1+Math.sin(blinkT*18)*0.04;top.mesh.scale.y=boxHeight*puls;}
+  if(top.special==='coin'){top.mesh.rotation.y+=0.06;try{top.mesh.material.emissive.setHex(Math.sin(blinkT*9)>0?0xcc9900:0x554400);}catch(e){}}
+  if(top.special==='magnet'){try{top.mesh.material.emissive.setHex(Math.sin(blinkT*10)>0?0x00aaff:0x003355);}catch(e){}}
   if(top.special==='magnet'&&stack.length>1){const prev=stack[stack.length-2];const tg=prev.mesh.position[currentDirection];top.mesh.position[currentDirection]+=(tg-top.mesh.position[currentDirection])*0.02;}
   top.mesh.position[currentDirection]+=speed;
   if(top.mesh.position[currentDirection]>20)top.mesh.position[currentDirection]=-20;
