@@ -17,6 +17,11 @@ canvas{display:block}
 #coins{color:#ffd966}
 #perfect-pill.hot{border-color:var(--accent);color:var(--accent);box-shadow:0 0 10px var(--accent)}
 #special-banner{margin-top:8px;font-size:1.3rem;font-weight:800;text-shadow:0 2px 8px #000;min-height:1.6em}
+#bomb-hud{position:fixed;left:12px;bottom:12px;z-index:15;display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+#bomb-btn{font-size:1.15rem;font-weight:800;padding:10px 14px;border-radius:14px;cursor:pointer;border:1px solid rgba(255,255,255,.3);background:rgba(0,0,0,.6);color:#fff;box-shadow:0 4px 14px rgba(0,0,0,.4)}
+#bomb-btn:disabled{opacity:.45;cursor:default}
+#bomb-btn.ready{border-color:#ff3b30;box-shadow:0 0 12px #ff3b30}
+#bomb-progress{font-size:.75rem;font-weight:700;opacity:.9;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.2);border-radius:999px;padding:2px 8px}
 
 #menu{position:fixed;top:12px;right:12px;z-index:20;display:flex;flex-direction:column;align-items:flex-end;gap:8px}
 #menu-btn{width:44px;height:44px;padding:0;font-size:1.3rem;line-height:1;border-radius:14px;background:rgba(0,0,0,.6)}
@@ -45,6 +50,7 @@ canvas{display:block}
 <div id="special-banner"></div>
 </div>
 
+<div id="bomb-hud"><button id="bomb-btn" title="Usa bomba (B)">💣 0/3</button><div id="bomb-progress">Perfect per bomba: 0/10</div></div>
 <div id="menu"><button class="btn" id="menu-btn" aria-label="Menu">&#9776;</button><div id="menu-popup"><button class="btn" id="restart-btn">Restart</button><button class="btn" id="shop-btn">Shop</button></div></div>
 <div id="flash"></div>
 <div id="gameover"><div class="card"><h1>GAME OVER</h1><p id="go-reason"></p><p id="go-stats"></p><button class="btn" id="go-retry">Gioca ancora</button> <button class="btn" id="go-shop">Shop</button></div></div>
@@ -56,6 +62,7 @@ let stack=[],overhangs=[],particles=[];
 let score=0,highScore=parseInt(localStorage.getItem('stack_3d_highscore')||'0',10);
 let coins=parseInt(localStorage.getItem('stack3d_coins')||'0',10);
 let perfectStreak=0,bestStreak=parseInt(localStorage.getItem('stack3d_beststreak')||'0',10);
+let bombs=0,bombProgress=0;const BOMB_MAX=3,BOMB_EVERY=10,BOMB_POWER=10;
 let gameEnded=false,gameStarted=false;
 const boxHeight=1;let speed=0.15,currentDirection='x';
 const PERFECT_TOL=0.3;
@@ -79,7 +86,7 @@ function vibrate(p){try{if(navigator.vibrate)navigator.vibrate(p);}catch(e){}}
 function flash(op,color){const f=$('flash');f.style.background=color||'#fff';f.style.opacity=op;setTimeout(()=>f.style.opacity=0,80);}
 function shake(m,t){shakeMag=Math.max(shakeMag,m);shakeTime=Math.max(shakeTime,t);}
 function banner(txt,ms){const b=$('special-banner');b.textContent=txt;clearTimeout(b._t);b._t=setTimeout(()=>b.textContent='',ms||2200);}
-function refreshHUD(){$('score').textContent=score;$('high-score').textContent='Record: '+highScore;$('coins').textContent='🪙 '+coins;$('perfect-pill').textContent='Perfect x'+perfectStreak;$('perfect-pill').classList.toggle('hot',perfectStreak>0);$('shop-coins').textContent='monete '+coins}
+function refreshHUD(){$('score').textContent=score;$('high-score').textContent='Record: '+highScore;$('coins').textContent='🪙 '+coins;$('perfect-pill').textContent='Perfect x'+perfectStreak;$('perfect-pill').classList.toggle('hot',perfectStreak>0);$('shop-coins').textContent='monete '+coins;const bb=$('bomb-btn'),bp=$('bomb-progress');if(bb){bb.textContent='💣 '+bombs+'/'+BOMB_MAX;bb.disabled=bombs<=0||gameEnded;bb.classList.toggle('ready',bombs>0);}if(bp){bp.textContent=bombs>=BOMB_MAX?'Bombe MAX':('Perfect per bomba: '+bombProgress+'/'+BOMB_EVERY);}}
 function makeMesh(w,h,d,special){
  let geo;
  if(shapeId==='cylinder')geo=new THREE.CylinderGeometry(.5,.5,1,28);
@@ -116,7 +123,7 @@ function handlePlace(){
   const isPerfect=Math.abs(delta)<snapTol;
   if(isPerfect){
    top.mesh.position[currentDirection]=prev.mesh.position[currentDirection];top.x=top.mesh.position.x;top.z=top.mesh.position.z;
-   perfectStreak++;bestStreak=Math.max(bestStreak,perfectStreak);coins+=1;
+   perfectStreak++;bestStreak=Math.max(bestStreak,perfectStreak);coins+=1;if(bombs<BOMB_MAX){bombProgress++;if(bombProgress>=BOMB_EVERY){bombProgress=0;bombs=Math.min(BOMB_MAX,bombs+1);banner('💣 Bomba caricata! ('+bombs+'/'+BOMB_MAX+')');flash(.6,'#ff9500');vibrate([40,40,80]);}}
    if(perfectStreak%3===0){coins+=5;banner('PERFECT x'+perfectStreak+'! +6 monete');}else banner('PERFECT!');
    flash(.45);vibrate(50);
    const wp=new THREE.Vector3();top.mesh.getWorldPosition(wp);spawnBurst(wp,['#ffffff'].concat(THEMES[themeId].part),22,4);
@@ -143,6 +150,22 @@ function handlePlace(){
   addLayer(currentDirection==='x'?-20:top.mesh.position.x,currentDirection==='z'?-20:top.mesh.position.z,top.width,top.depth,currentSpecial);
  }else{endGame();}
 }
+function detonateBomb(){
+ if(gameEnded||bombs<=0||stack.length<=3)return;
+ bombs--;
+ banner('💣 BOOM! -10 pezzi, si ricomincia da qui!');flash(.7,'#ff9500');shake(1.2,.7);vibrate([80,50,80]);
+ const wp=new THREE.Vector3();stack[stack.length-1].mesh.getWorldPosition(wp);spawnBurst(wp,['#ff9500','#ff3b30','#ffe27a','#555555'],60,8);
+ // rimuovi fino a 10 pezzi sotto il pezzo in movimento (conserva le 2 basi); il pezzo in movimento resta dov'e'
+ let removed=0;while(removed<BOMB_POWER&&(stack.length-1)>2){const idx=stack.length-2;const l=stack.splice(idx,1)[0];const p=new THREE.Vector3();l.mesh.getWorldPosition(p);spawnBurst(p,['#ff9500','#555555'],14,5);towerGroup.remove(l.mesh);removed++;}
+ // riallinea altezze dopo la rimozione
+ for(let i=0;i<stack.length;i++){const l=stack[i];const y=boxHeight*i;l.mesh.position.y=y;}
+ // reset dimensione del prossimo pezzo a quella del primo attualmente in cima (il top fisico), senza toccare speed
+ const topNow=stack[stack.length-2];const moving=stack[stack.length-1];
+ if(topNow&&moving){moving.width=topNow.width;moving.depth=topNow.depth;moving.mesh.scale.x=Math.max(topNow.width,.001);moving.mesh.scale.z=Math.max(topNow.depth,.001);moving.mesh.position.x=topNow.mesh.position.x;moving.mesh.position.z=topNow.mesh.position.z;moving.x=moving.mesh.position.x;moving.z=moving.mesh.position.z;moving.mesh.position.y=boxHeight*(stack.length-1);}
+ // abbassa subito la camera insieme alla torre tagliata
+ const targetY=20+(stack.length-2)*boxHeight;camera.position.y=Math.min(camera.position.y,targetY);camera.lookAt(0,camera.position.y-20,0);
+ saveMeta();refreshHUD();
+}
 function detonateTNT(){
  banner('BOOM! La TNT ripara la torre!');flash(.6,'#ff3b30');shake(.9,.6);vibrate([60,40,60]);
  const wp=new THREE.Vector3();stack[stack.length-1].mesh.getWorldPosition(wp);spawnBurst(wp,['#ff3b30','#ff9500','#ffe27a'],40,7);
@@ -159,7 +182,7 @@ function endGame(){
 }
 function restartGame(){
  stack.forEach(l=>towerGroup.remove(l.mesh));overhangs.forEach(o=>scene.remove(o.mesh));particles.forEach(p=>scene.remove(p.mesh));
- stack=[];overhangs=[];particles=[];score=0;speed=.15;gameEnded=false;gameStarted=false;currentDirection='x';
+ stack=[];overhangs=[];particles=[];score=0;speed=.15;gameEnded=false;gameStarted=false;currentDirection='x';bombs=0;bombProgress=0;
  currentSpecial=null;specialCountdown=5;perfectStreak=0;
  shakeTime=shakeMag=0;
  $('gameover').style.display='none';$('special-banner').textContent='';$('score').textContent='0';
@@ -186,13 +209,14 @@ function init(){
  addLayer(0,0,10,10,null);addLayer(0,0,10,10,null);refreshHUD();buildShop();
  addEventListener('resize',()=>{const a=innerWidth/innerHeight,dd=20;camera.left=-dd*a;camera.right=dd*a;camera.top=dd;camera.bottom=-dd;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
  addEventListener('pointerdown',e=>{const inMenu=!!e.target.closest('#menu');if(!inMenu)$('menu').classList.remove('open');if(inMenu||e.target.closest('button')||e.target.closest('#shop')||e.target.closest('#gameover'))return;handlePlace();});
- addEventListener('keydown',e=>{if(e.code==='Space'){e.preventDefault();handlePlace();}if(e.code==='KeyR')restartGame();});
+ addEventListener('keydown',e=>{if(e.code==='Space'){e.preventDefault();handlePlace();}if(e.code==='KeyR')restartGame();if(e.code==='KeyB')detonateBomb();});
  $('shop-btn').onclick=e=>{e.stopPropagation();$('menu').classList.remove('open');$('shop').style.display='flex';refreshHUD();};
  $('go-shop').onclick=e=>{e.stopPropagation();$('shop').style.display='flex';refreshHUD();};
  $('shop-close').onclick=e=>{e.stopPropagation();$('shop').style.display='none';};
  $('restart-btn').onclick=e=>{e.stopPropagation();$('menu').classList.remove('open');restartGame();};
  $('go-retry').onclick=e=>{e.stopPropagation();restartGame();};
  $('menu-btn').onclick=e=>{e.stopPropagation();$('menu').classList.toggle('open');};
+ $('bomb-btn').onclick=e=>{e.stopPropagation();detonateBomb();};
  renderer.setAnimationLoop(animation);
 }
 function animation(){
