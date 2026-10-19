@@ -74,6 +74,7 @@ let score=0,highScore=parseInt(localStorage.getItem('stack_3d_highscore')||'0',1
 let coins=parseInt(localStorage.getItem('stack3d_coins')||'0',10);
 let perfectStreak=0,bestStreak=parseInt(localStorage.getItem('stack3d_beststreak')||'0',10);
 let bombs=0,bombProgress=0;const BOMB_MAX=3,BOMB_EVERY=10,BOMB_POWER=10;
+const TNT_POWER=2;
 let gameEnded=false,gameStarted=false;
 const boxHeight=1;let speed=0.15,currentDirection='x';
 const PERFECT_TOL=0.3;
@@ -279,14 +280,16 @@ async function detonateBomb(){
  saveMeta();refreshHUD();
 }
 async function detonateTNT(){
- const total=Math.min(2,stack.length-3);
- if(total<=0)return 0;
+ const below=Math.min(TNT_POWER,stack.length-3);
+ if(below<=0)return 0;
  demolishing=true;const mySeq=++demolishSeq;
- banner('-'+total+' pezzi');flash(.6,'#ff3b30');shake(.9,.6);vibrate([60,40,60]);
+ banner('-'+below+' pezzi');flash(.6,'#ff3b30');shake(.9,.6);vibrate([60,40,60]);
  const wp=new THREE.Vector3();stack[stack.length-1].mesh.getWorldPosition(wp);spawnBurst(wp,['#ff3b30','#ff9500','#ffe27a'],40,7);
+ // la TNT stessa esplode (non conteggiata), poi distruzione a cascata dei pezzi sotto: uno alla volta
+ const tnt=stack.pop();towerGroup.remove(tnt.mesh);
  // distruzione a cascata: un pezzo alla volta
  let removed=0;
- while(removed<total){
+ while(removed<below){
   if(mySeq!==demolishSeq||gameEnded)break;
   const l=stack.pop();const pp=new THREE.Vector3();l.mesh.getWorldPosition(pp);spawnBurst(pp,['#ff3b30','#555555'],16,5);towerGroup.remove(l.mesh);removed++;
   flash(.25,'#ff3b30');shake(.3,.25);vibrate(30);
