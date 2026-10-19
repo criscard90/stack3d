@@ -17,11 +17,7 @@ canvas{display:block}
 #coins{color:#ffd966}
 #perfect-pill.hot{border-color:var(--accent);color:var(--accent);box-shadow:0 0 10px var(--accent)}
 #special-banner{margin-top:8px;font-size:1.3rem;font-weight:800;text-shadow:0 2px 8px #000;min-height:1.6em}
-#sway-wrap{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);width:230px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.25);border-radius:10px;padding:6px 10px;z-index:12;pointer-events:none;box-shadow:0 4px 14px rgba(0,0,0,.4)}
-#sway-label{font-size:.72rem;letter-spacing:.06em;opacity:.9}
-#sway-bar{height:10px;background:#333;border-radius:999px;overflow:hidden;margin-top:4px;position:relative}
-#sway-fill{height:100%;width:8%;margin-left:46%;background:linear-gradient(90deg,#2ecc71,#f1c40f,#e74c3c);border-radius:999px}
-#sway-marker{position:absolute;left:50%;top:-2px;bottom:-2px;width:2px;background:#fff}
+
 #menu{position:fixed;top:12px;right:12px;z-index:20;display:flex;flex-direction:column;align-items:flex-end;gap:8px}
 #menu-btn{width:44px;height:44px;padding:0;font-size:1.3rem;line-height:1;border-radius:14px;background:rgba(0,0,0,.6)}
 #menu-popup{display:none;flex-direction:column;gap:8px;background:rgba(0,0,0,.75);border:1px solid rgba(255,255,255,.25);border-radius:14px;padding:10px;min-width:150px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
@@ -38,17 +34,17 @@ canvas{display:block}
 .shop-item{flex:1 1 140px;border:1px solid rgba(255,255,255,.2);border-radius:12px;padding:10px;text-align:center;background:rgba(255,255,255,.05)}
 .shop-item.active{border-color:var(--accent);box-shadow:0 0 12px var(--accent)}
 .shop-item button{margin-top:8px;width:100%;padding:8px;border-radius:10px;border:0;cursor:pointer;font-weight:700}
-@media(max-width:600px){#score{font-size:3rem}.pill{font-size:.72rem;padding:2px 8px}#sway-wrap{width:200px}}
+@media(max-width:600px){#score{font-size:3rem}.pill{font-size:.72rem;padding:2px 8px}}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
-<div id="hud-left"><div class="pill" id="coins">🪙 0</div><div class="pill" id="perfect-pill">Perfect x0</div><div class="pill" id="cement-pill" style="display:none">Cemento: 0</div></div>
+<div id="hud-left"><div class="pill" id="coins">🪙 0</div><div class="pill" id="perfect-pill">Perfect x0</div></div>
 <div id="ui"><div id="score">0</div><div id="high-score">Record: 0</div>
 <!-- HUD monete/perfect spostato in alto a sinistra -->
 <div id="special-banner"></div>
 </div>
-<div id="sway-wrap"><div id="sway-label">EQUILIBRIO</div><div id="sway-bar"><div id="sway-fill"></div><div id="sway-marker"></div></div></div>
+
 <div id="menu"><button class="btn" id="menu-btn" aria-label="Menu">&#9776;</button><div id="menu-popup"><button class="btn" id="restart-btn">Restart</button><button class="btn" id="shop-btn">Shop</button></div></div>
 <div id="flash"></div>
 <div id="gameover"><div class="card"><h1>GAME OVER</h1><p id="go-reason"></p><p id="go-stats"></p><button class="btn" id="go-retry">Gioca ancora</button> <button class="btn" id="go-shop">Shop</button></div></div>
@@ -60,11 +56,11 @@ let stack=[],overhangs=[],particles=[];
 let score=0,highScore=parseInt(localStorage.getItem('stack_3d_highscore')||'0',10);
 let coins=parseInt(localStorage.getItem('stack3d_coins')||'0',10);
 let perfectStreak=0,bestStreak=parseInt(localStorage.getItem('stack3d_beststreak')||'0',10);
-let gameEnded=false,gameStarted=false,toppleLock=false;
+let gameEnded=false,gameStarted=false;
 const boxHeight=1;let speed=0.15,currentDirection='x';
 const PERFECT_TOL=0.3;
-let sway={ax:0,az:0,vx:0,vz:0};
-let cementLeft=0,tiltInput={x:0,z:0},shakeTime=0,shakeMag=0;
+
+let shakeTime=0,shakeMag=0;
 let currentSpecial=null,specialCountdown=5,blinkT=0;
 const THEMES={
  classic:{name:'Classico',price:0,bg:0x1a1a2e,amb:0xffffff,ambI:.6,dir:0xffffff,dirI:.6,fog:null,accent:'#ffffff',part:['#ffffff','#ffe27a']},
@@ -83,7 +79,7 @@ function vibrate(p){try{if(navigator.vibrate)navigator.vibrate(p);}catch(e){}}
 function flash(op,color){const f=$('flash');f.style.background=color||'#fff';f.style.opacity=op;setTimeout(()=>f.style.opacity=0,80);}
 function shake(m,t){shakeMag=Math.max(shakeMag,m);shakeTime=Math.max(shakeTime,t);}
 function banner(txt,ms){const b=$('special-banner');b.textContent=txt;clearTimeout(b._t);b._t=setTimeout(()=>b.textContent='',ms||2200);}
-function refreshHUD(){$('score').textContent=score;$('high-score').textContent='Record: '+highScore;$('coins').textContent='🪙 '+coins;$('perfect-pill').textContent='Perfect x'+perfectStreak;$('perfect-pill').classList.toggle('hot',perfectStreak>0);$('shop-coins').textContent='monete '+coins;const c=$('cement-pill');if(cementLeft>0){c.style.display='inline-flex';c.textContent='Cemento: '+cementLeft;}else c.style.display='none';}
+function refreshHUD(){$('score').textContent=score;$('high-score').textContent='Record: '+highScore;$('coins').textContent='🪙 '+coins;$('perfect-pill').textContent='Perfect x'+perfectStreak;$('perfect-pill').classList.toggle('hot',perfectStreak>0);$('shop-coins').textContent='monete '+coins}
 function makeMesh(w,h,d,special){
  let geo;
  if(shapeId==='cylinder')geo=new THREE.CylinderGeometry(.5,.5,1,28);
@@ -92,7 +88,7 @@ function makeMesh(w,h,d,special){
  let color;
  const lvl=stack.length;
  if(special==='tnt')color=new THREE.Color(0xe74c3c);
- else if(special==='cement')color=new THREE.Color(0x95a5a6);
+
  else if(special==='magnet')color=new THREE.Color(0x3498db);
  else if(special==='coin')color=new THREE.Color(0xf1c40f);
  else color=new THREE.Color('hsl('+((lvl*14)%360)+', 75%, 60%)');
@@ -103,9 +99,9 @@ function applyTheme(id){themeId=id;const t=THEMES[id];scene.background=new THREE
 function addLayer(x,z,w,d,special){const y=boxHeight*stack.length;const mesh=makeMesh(w,boxHeight,d,special);mesh.position.set(x,y,z);towerGroup.add(mesh);stack.push({mesh:mesh,width:w,depth:d,x:x,z:z,special:special||null});}
 const partGeo=new THREE.BoxGeometry(.22,.22,.22);
 function spawnBurst(pos,colors,n,power){n=n||14;power=power||3;for(let i=0;i<n;i++){const c=colors[Math.floor(Math.random()*colors.length)];const m=new THREE.Mesh(partGeo,new THREE.MeshBasicMaterial({color:new THREE.Color(c)}));m.position.copy(pos);scene.add(m);particles.push({mesh:m,vx:(Math.random()-.5)*power,vy:Math.random()*power+1,vz:(Math.random()-.5)*power,life:50+Math.random()*30});}if(particles.length>400){const p=particles.splice(0,particles.length-400);p.forEach(o=>scene.remove(o.mesh));}}
-function addOverhang(x,z,w,d,color){const y=boxHeight*(stack.length-1);const mesh=makeMesh(w,boxHeight,d,null);mesh.material=new THREE.MeshLambertMaterial({color:color||0xffffff});mesh.position.set(x,y,z);towerGroup.updateMatrixWorld(true);const wp=new THREE.Vector3(x,y,z).applyMatrix4(towerGroup.matrixWorld);mesh.position.copy(wp);scene.add(mesh);spawnBurst(wp,THEMES[themeId].part,10);overhangs.push({mesh:mesh,speedY:0,rx:(Math.random()-.5)*.08,rz:(Math.random()-.5)*.08,vx:(Math.random()-.5)*.3,vz:(Math.random()-.5)*.3});}
-function pickSpecial(){if(score<4)return null;specialCountdown--;if(specialCountdown>0)return null;specialCountdown=5+Math.floor(Math.random()*5);const r=Math.random();if(r<.28)return 'coin';if(r<.5)return 'cement';if(r<.72)return 'magnet';return 'tnt';}
-function centerOfMass(){if(!stack.length)return{x:0,z:0};let sx=0,sz=0;stack.forEach(l=>{sx+=l.mesh.position.x;sz+=l.mesh.position.z;});return{x:sx/stack.length,z:sz/stack.length};}
+function addOverhang(x,z,w,d,color){const y=boxHeight*(stack.length-1);const mesh=makeMesh(w,boxHeight,d,null);mesh.material=new THREE.MeshLambertMaterial({color:color||0xffffff});mesh.position.set(x,y,z);scene.add(mesh);spawnBurst(mesh.position,THEMES[themeId].part,10);overhangs.push({mesh:mesh,speedY:0,rx:(Math.random()-.5)*.08,rz:(Math.random()-.5)*.08,vx:(Math.random()-.5)*.3,vz:(Math.random()-.5)*.3});}
+function pickSpecial(){if(score<4)return null;specialCountdown--;if(specialCountdown>0)return null;specialCountdown=5+Math.floor(Math.random()*5);const r=Math.random();if(r<.35)return 'coin';if(r<.65)return 'magnet';return 'tnt';}
+
 function handlePlace(){
  if(gameEnded){restartGame();return;}
  if($('shop').style.display==='flex')return;
@@ -137,38 +133,35 @@ function handlePlace(){
   }
   const placed=top.special;top.special=null;
   if(placed==='coin'){coins+=5;banner('+6 monete!');vibrate(30);}
-  if(placed==='cement'){cementLeft=5;sway.ax=sway.az=sway.vx=sway.vz=0;banner('CEMENTO! Torre solida per 5 turni');flash(.3,'#95a5a6');}
   if(placed==='magnet'&&!isPerfect)banner('Magnete: attrazione assistita!');
   if(placed==='tnt')detonateTNT();
-  if(cementLeft>0&&placed!=='cement')cementLeft--;
   score++;if(score>highScore){highScore=score;localStorage.setItem('stack_3d_highscore',highScore);}
   saveMeta();refreshHUD();
   currentDirection=currentDirection==='x'?'z':'x';speed+=0.005;
   currentSpecial=pickSpecial();
-  if(currentSpecial)banner({tnt:'TNT in arrivo!',cement:'CEMENTO in arrivo!',magnet:'MAGNETE in arrivo!',coin:'MONETA in arrivo!'}[currentSpecial],1800);
+  if(currentSpecial)banner({tnt:'TNT in arrivo!',magnet:'MAGNETE in arrivo!',coin:'MONETA in arrivo!'}[currentSpecial],1800);
   addLayer(currentDirection==='x'?-20:top.mesh.position.x,currentDirection==='z'?-20:top.mesh.position.z,top.width,top.depth,currentSpecial);
- }else{endGame('miss');}
+ }else{endGame();}
 }
 function detonateTNT(){
  banner('BOOM! La TNT ripara la torre!');flash(.6,'#ff3b30');shake(.9,.6);vibrate([60,40,60]);
  const wp=new THREE.Vector3();stack[stack.length-1].mesh.getWorldPosition(wp);spawnBurst(wp,['#ff3b30','#ff9500','#ffe27a'],40,7);
  let removed=0;while(stack.length>3&&removed<2){const l=stack.pop();const p=new THREE.Vector3();l.mesh.getWorldPosition(p);spawnBurst(p,['#ff3b30','#555555'],16,5);towerGroup.remove(l.mesh);removed++;}
  const nt=stack[stack.length-1];if(nt){const pv=stack[stack.length-2];if(pv){nt.mesh.position.x=pv.mesh.position.x;nt.mesh.position.z=pv.mesh.position.z;nt.x=nt.mesh.position.x;nt.z=nt.mesh.position.z;}}
- sway.ax=sway.az=sway.vx=sway.vz=0;towerGroup.rotation.set(0,0,0);
 }
-function endGame(reason){
+function endGame(){
  if(gameEnded)return;gameEnded=true;vibrate(80);shake(1,.7);flash(.5,'#ff0044');
  const top=stack[stack.length-1];
- if(reason==='miss'&&top){addOverhang(top.mesh.position.x,top.mesh.position.z,top.width,top.depth,top.mesh.material.color.clone());towerGroup.remove(top.mesh);}
- $('go-reason').textContent=reason==='topple'?'La torre e COLLASSATA per lo sbilanciamento!':'Hai mancato il blocco!';
+ if(top){addOverhang(top.mesh.position.x,top.mesh.position.z,top.width,top.depth,top.mesh.material.color.clone());towerGroup.remove(top.mesh);}
+ $('go-reason').textContent='Hai mancato il blocco!';
  $('go-stats').innerHTML='Punteggio: <b>'+score+'</b> - Record: <b>'+highScore+'</b><br>monete '+coins+' - best streak x'+bestStreak;
  $('gameover').style.display='flex';
 }
 function restartGame(){
  stack.forEach(l=>towerGroup.remove(l.mesh));overhangs.forEach(o=>scene.remove(o.mesh));particles.forEach(p=>scene.remove(p.mesh));
  stack=[];overhangs=[];particles=[];score=0;speed=.15;gameEnded=false;gameStarted=false;currentDirection='x';
- sway={ax:0,az:0,vx:0,vz:0};cementLeft=0;currentSpecial=null;specialCountdown=5;perfectStreak=0;toppleLock=false;
- shakeTime=shakeMag=0;towerGroup.rotation.set(0,0,0);
+ currentSpecial=null;specialCountdown=5;perfectStreak=0;
+ shakeTime=shakeMag=0;
  $('gameover').style.display='none';$('special-banner').textContent='';$('score').textContent='0';
  $('menu').classList.remove('open');
  addLayer(0,0,10,10,null);addLayer(0,0,10,10,null);
@@ -180,7 +173,6 @@ function buildShop(){
  const sw=$('shapes');sw.innerHTML='';
  Object.keys(SHAPES).forEach(id=>{const s=SHAPES[id];const d=document.createElement('div');d.className='shop-item'+(id===shapeId?' active':'');d.innerHTML='<b>'+s.name+'</b><br><small>'+(s.price===0?'Gratis':'monete '+s.price)+'</small><br>';const b=document.createElement('button');b.textContent=owned.indexOf(id)>=0?(id===shapeId?'Attivo':'Usa'):'Compra';b.onclick=()=>{if(owned.indexOf(id)<0){if(coins<s.price){alert('Monete insufficienti!');return;}coins-=s.price;owned.push(id);}shapeId=id;saveMeta();refreshHUD();buildShop();banner('Forma: '+s.name);};d.appendChild(b);sw.appendChild(d);});
 }
-function bindHold(id,down,up){const el=$(id);el.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();down();});el.addEventListener('pointerup',e=>{e.preventDefault();up();});el.addEventListener('pointerleave',up);el.addEventListener('pointercancel',up);}
 function init(){
  scene=new THREE.Scene();
  const aspect=innerWidth/innerHeight,d=20;
@@ -194,9 +186,7 @@ function init(){
  addLayer(0,0,10,10,null);addLayer(0,0,10,10,null);refreshHUD();buildShop();
  addEventListener('resize',()=>{const a=innerWidth/innerHeight,dd=20;camera.left=-dd*a;camera.right=dd*a;camera.top=dd;camera.bottom=-dd;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
  addEventListener('pointerdown',e=>{const inMenu=!!e.target.closest('#menu');if(!inMenu)$('menu').classList.remove('open');if(inMenu||e.target.closest('button')||e.target.closest('#shop')||e.target.closest('#gameover'))return;handlePlace();});
- addEventListener('keydown',e=>{if(e.code==='Space'){e.preventDefault();handlePlace();}if(e.code==='ArrowLeft')tiltInput.z=-1;if(e.code==='ArrowRight')tiltInput.z=1;if(e.code==='ArrowUp')tiltInput.x=-1;if(e.code==='ArrowDown')tiltInput.x=1;if(e.code==='KeyR')restartGame();});
- addEventListener('keyup',e=>{if(e.code==='ArrowLeft'||e.code==='ArrowRight')tiltInput.z=0;if(e.code==='ArrowUp'||e.code==='ArrowDown')tiltInput.x=0;});
- try{addEventListener('deviceorientation',e=>{if(e.gamma==null||e.beta==null)return;tiltInput.z=Math.max(-1,Math.min(1,e.gamma/25));tiltInput.x=Math.max(-1,Math.min(1,(e.beta-40)/25));});}catch(err){}
+ addEventListener('keydown',e=>{if(e.code==='Space'){e.preventDefault();handlePlace();}if(e.code==='KeyR')restartGame();});
  $('shop-btn').onclick=e=>{e.stopPropagation();$('menu').classList.remove('open');$('shop').style.display='flex';refreshHUD();};
  $('go-shop').onclick=e=>{e.stopPropagation();$('shop').style.display='flex';refreshHUD();};
  $('shop-close').onclick=e=>{e.stopPropagation();$('shop').style.display='none';};
@@ -212,33 +202,13 @@ function animation(){
   if(top.special==='tnt'){top.mesh.material.emissive.setHex(Math.sin(blinkT*14)>0?0xff0000:0x330000);}
   if(top.special==='coin')top.mesh.rotation.y+=0.06;
   if(top.special==='magnet'&&stack.length>1){const prev=stack[stack.length-2];const tg=prev.mesh.position[currentDirection];top.mesh.position[currentDirection]+=(tg-top.mesh.position[currentDirection])*0.02;}
-  top.mesh.position[currentDirection]+=speed*(top.special==='cement'?0.85:1);
+  top.mesh.position[currentDirection]+=speed;
   if(top.mesh.position[currentDirection]>20)top.mesh.position[currentDirection]=-20;
  }
  overhangs.forEach(o=>{o.speedY-=0.05;o.mesh.position.y+=o.speedY;o.mesh.position.x+=o.vx;o.mesh.position.z+=o.vz;o.mesh.rotation.x+=o.rx;o.mesh.rotation.z+=o.rz;});
  overhangs=overhangs.filter(o=>{if(o.mesh.position.y<-30){scene.remove(o.mesh);return false;}return true;});
  particles.forEach(p=>{p.life--;p.mesh.position.x+=p.vx*.08;p.mesh.position.y+=p.vy*.08;p.mesh.position.z+=p.vz*.08;p.vy-=.15;p.mesh.rotation.x+=.1;p.mesh.scale.multiplyScalar(.985);});
  particles=particles.filter(p=>{if(p.life<=0){scene.remove(p.mesh);return false;}return true;});
- if(stack.length>2&&!gameEnded){
-  const h=stack.length,com=centerOfMass();
-  const startH=8,active=Math.max(0,(h-startH)/10);
-  const k=0.004+active*0.01;
-  const tZ=-com.x*k*3,tX=com.z*k*3;
-  if(cementLeft>0){sway.vx+=(0-sway.ax)*.15-sway.vx*.25;sway.vz+=(0-sway.az)*.15-sway.vz*.25;sway.ax+=sway.vx*.016*60*.016;sway.az+=sway.vz*.016*60*.016;}
-  else{
-   const ctrl=.0035;sway.vx+=(-tiltInput.x*ctrl);sway.vz+=(-tiltInput.z*ctrl);
-   const stiff=.012+active*.02,damp=.985-Math.min(.02,active*.015);
-   sway.vx+=(tX-sway.ax)*stiff;sway.vz+=(tZ-sway.az)*stiff;sway.vx*=damp;sway.vz*=damp;sway.ax+=sway.vx;sway.az+=sway.vz;
-   const tiltMag=Math.sqrt(sway.ax*sway.ax+sway.az*sway.az);
-   const comMag=Math.sqrt(com.x*com.x+com.z*com.z);
-   const baseW=Math.min(stack[0].width,stack[0].depth),crit=.32;
-   const pct=Math.min(1,tiltMag/crit);
-   const fill=$('sway-fill');fill.style.width=(8+pct*92)+'%';fill.style.marginLeft=((100-(8+pct*92))/2)+'%';
-   $('sway-wrap').style.borderColor=pct>.7?'#e74c3c':pct>.4?'#f1c40f':'rgba(255,255,255,.25)';
-   if(!toppleLock&&((h>startH&&tiltMag>crit)||comMag>baseW*.75)){toppleLock=true;sway.ax*=2;sway.az*=2;shake(1.2,.8);setTimeout(()=>{endGame('topple');},480);}
-  }
- }
- towerGroup.rotation.x=sway.ax;towerGroup.rotation.z=sway.az;
  const targetY=20+(stack.length-2)*boxHeight;
  if(camera.position.y<targetY)camera.position.y+=(targetY-camera.position.y)*.08;
  const baseY=camera.position.y;
