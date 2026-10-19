@@ -253,7 +253,8 @@ async function handlePlace(){
   if(placed==='tnt')await detonateTNT();
   score++;if(score>highScore){highScore=score;localStorage.setItem('stack_3d_highscore',highScore);}
   saveMeta();refreshHUD();
-  currentDirection=currentDirection==='x'?'z':'x';speed+=0.005;
+  currentDirection=currentDirection==='x'?'z':'x';if(placed!=='tnt')speed+=0.005;
+  // TNT come bomba/frenzy: dimensione nuovi pezzi resettata al top attuale (ref sotto), velocita' invariata (no reset, no aumento)
   currentSpecial=pickSpecial();
   if(currentSpecial)banner({tnt:'---- TNT IN ARRIVO ----',magnet:'---- MAGNETE IN ARRIVO ----',coin:'---- BLOCCO DORATO IN ARRIVO ----'}[currentSpecial],1800);
   const ref=stack[stack.length-1];addLayer(currentDirection==='x'?-20:ref.mesh.position.x,currentDirection==='z'?-20:ref.mesh.position.z,ref.width,ref.depth,currentSpecial);
