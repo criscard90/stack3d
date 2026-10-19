@@ -73,6 +73,8 @@ const COIN_GOLD_MIN=15,COIN_GOLD_MAX=20,COIN_STD_MIN=3,COIN_STD_MAX=5;
 function randInt(a,b){return a+Math.floor(Math.random()*(b-a+1));}
 
 let shakeTime=0,shakeMag=0;
+let demolishing=false,demolishSeq=0;
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
 let currentSpecial=null,specialCountdown=5,blinkT=0;
 const THEMES={
  classic:{name:'Classico',price:0,bg:0x1a1a2e,amb:0xffffff,ambI:.6,dir:0xffffff,dirI:.6,fog:null,accent:'#ffffff',part:['#ffffff','#ffe27a']},
@@ -122,15 +124,16 @@ function spawnBurst(pos,colors,n,power){n=n||14;power=power||3;for(let i=0;i<n;i
 function addOverhang(x,z,w,d,color){const y=boxHeight*(stack.length-1);const mesh=makeMesh(w,boxHeight,d,null);mesh.material=new THREE.MeshLambertMaterial({color:color||0xffffff});mesh.position.set(x,y,z);scene.add(mesh);spawnBurst(mesh.position,THEMES[themeId].part,10);overhangs.push({mesh:mesh,speedY:0,rx:(Math.random()-.5)*.08,rz:(Math.random()-.5)*.08,vx:(Math.random()-.5)*.3,vz:(Math.random()-.5)*.3});}
 function pickSpecial(){if(score<4)return null;specialCountdown--;if(specialCountdown>0)return null;specialCountdown=5+Math.floor(Math.random()*5);const r=Math.random();if(r<.35)return 'coin';if(r<.65)return 'magnet';return 'tnt';}
 
-function handlePlace(){
+async function handlePlace(){
  if(gameEnded){restartGame();return;}
+ if(demolishing)return;
  if($('shop').style.display==='flex')return;
  if(!gameStarted)gameStarted=true;
  const top=stack[stack.length-1],prev=stack[stack.length-2];
+ const size=currentDirection==='x'?top.width:top.depth;
  let delta=top.mesh.position[currentDirection]-prev.mesh.position[currentDirection];
  let snapTol=PERFECT_TOL;
- if(top.special==='magnet'){delta*=0.25;top.mesh.position[currentDirection]=prev.mesh.position[currentDirection]+delta;snapTol=1.6;}
- const size=currentDirection==='x'?top.width:top.depth;
+ if(top.special==='magnet'){if(Math.abs(delta)<size){delta*=0.25;top.mesh.position[currentDirection]=prev.mesh.position[currentDirection]+delta;snapTol=1.6;}}
  const placeErr=Math.abs(delta);
  const overlap=size-placeErr;
  const overlapRatio=size>0?overlap/size:0;
@@ -160,7 +163,7 @@ function handlePlace(){
    else{const rw=randInt(COIN_STD_MIN,COIN_STD_MAX);coins+=rw;banner('Moneta opaca +'+rw+' monete');vibrate(30);}
   }
   if(placed==='magnet'&&!isPerfect)banner('Magnete: attrazione assistita!');
-  if(placed==='tnt')detonateTNT();
+  if(placed==='tnt')await detonateTNT();
   score++;if(score>highScore){highScore=score;localStorage.setItem('stack_3d_highscore',highScore);}
   saveMeta();refreshHUD();
   currentDirection=currentDirection==='x'?'z':'x';speed+=0.005;
@@ -169,27 +172,49 @@ function handlePlace(){
   addLayer(currentDirection==='x'?-20:top.mesh.position.x,currentDirection==='z'?-20:top.mesh.position.z,top.width,top.depth,currentSpecial);
  }else{endGame();}
 }
-function detonateBomb(){
- if(gameEnded||bombs<=0||stack.length<=3)return;
- bombs--;
- banner('💣 BOOM! -10 pezzi, si ricomincia da qui!');flash(.7,'#ff9500');shake(1.2,.7);vibrate([80,50,80]);
+async function detonateBomb(){
+ if(gameEnded||demolishing||bombs<=0||stack.length<=3)return;
+ demolishing=true;const mySeq=++demolishSeq;
+ bombs--;refreshHUD();
+ const total=Math.min(BOMB_POWER,(stack.length-1)-2);
+ banner('-'+total+' pezzi');flash(.7,'#ff9500');shake(1.2,.7);vibrate([80,50,80]);
  const wp=new THREE.Vector3();stack[stack.length-1].mesh.getWorldPosition(wp);spawnBurst(wp,['#ff9500','#ff3b30','#ffe27a','#555555'],60,8);
- // rimuovi fino a 10 pezzi sotto il pezzo in movimento (conserva le 2 basi); il pezzo in movimento resta dov'e'
- let removed=0;while(removed<BOMB_POWER&&(stack.length-1)>2){const idx=stack.length-2;const l=stack.splice(idx,1)[0];const p=new THREE.Vector3();l.mesh.getWorldPosition(p);spawnBurst(p,['#ff9500','#555555'],14,5);towerGroup.remove(l.mesh);removed++;}
- // riallinea altezze dopo la rimozione
- for(let i=0;i<stack.length;i++){const l=stack[i];const y=boxHeight*i;l.mesh.position.y=y;}
- // reset dimensione del prossimo pezzo a quella del primo attualmente in cima (il top fisico), senza toccare speed
+ // distruzione a cascata: un pezzo alla volta dall'alto verso il basso (conserva le 2 basi); il pezzo in movimento resta dov'e'
+ let removed=0;
+ while(removed<total){
+  if(mySeq!==demolishSeq||gameEnded)break;
+  const idx=stack.length-2;const l=stack.splice(idx,1)[0];
+  const pp=new THREE.Vector3();l.mesh.getWorldPosition(pp);spawnBurst(pp,['#ff9500','#ff3b30','#555555'],16,5);towerGroup.remove(l.mesh);removed++;
+  flash(.25,'#ff9500');shake(.3,.25);vibrate(30);
+  for(let i=0;i<stack.length;i++){stack[i].mesh.position.y=boxHeight*i;}
+  await sleep(130);
+ }
+ // reset dimensione del pezzo in movimento a quella del primo attualmente in cima (il top fisico), senza toccare speed
  const topNow=stack[stack.length-2];const moving=stack[stack.length-1];
  if(topNow&&moving){moving.width=topNow.width;moving.depth=topNow.depth;moving.mesh.scale.x=Math.max(topNow.width,.001);moving.mesh.scale.z=Math.max(topNow.depth,.001);moving.mesh.position.x=topNow.mesh.position.x;moving.mesh.position.z=topNow.mesh.position.z;moving.x=moving.mesh.position.x;moving.z=moving.mesh.position.z;moving.mesh.position.y=boxHeight*(stack.length-1);}
  // abbassa subito la camera insieme alla torre tagliata
  const targetY=20+(stack.length-2)*boxHeight;camera.position.y=Math.min(camera.position.y,targetY);camera.lookAt(0,camera.position.y-20,0);
+ demolishing=false;
  saveMeta();refreshHUD();
 }
-function detonateTNT(){
- banner('BOOM! La TNT ripara la torre!');flash(.6,'#ff3b30');shake(.9,.6);vibrate([60,40,60]);
+async function detonateTNT(){
+ const total=Math.min(2,stack.length-3);
+ if(total<=0)return 0;
+ demolishing=true;const mySeq=++demolishSeq;
+ banner('-'+total+' pezzi');flash(.6,'#ff3b30');shake(.9,.6);vibrate([60,40,60]);
  const wp=new THREE.Vector3();stack[stack.length-1].mesh.getWorldPosition(wp);spawnBurst(wp,['#ff3b30','#ff9500','#ffe27a'],40,7);
- let removed=0;while(stack.length>3&&removed<2){const l=stack.pop();const p=new THREE.Vector3();l.mesh.getWorldPosition(p);spawnBurst(p,['#ff3b30','#555555'],16,5);towerGroup.remove(l.mesh);removed++;}
+ // distruzione a cascata: un pezzo alla volta
+ let removed=0;
+ while(removed<total){
+  if(mySeq!==demolishSeq||gameEnded)break;
+  const l=stack.pop();const pp=new THREE.Vector3();l.mesh.getWorldPosition(pp);spawnBurst(pp,['#ff3b30','#555555'],16,5);towerGroup.remove(l.mesh);removed++;
+  flash(.25,'#ff3b30');shake(.3,.25);vibrate(30);
+  for(let i=0;i<stack.length;i++){stack[i].mesh.position.y=boxHeight*i;}
+  await sleep(170);
+ }
  const nt=stack[stack.length-1];if(nt){const pv=stack[stack.length-2];if(pv){nt.mesh.position.x=pv.mesh.position.x;nt.mesh.position.z=pv.mesh.position.z;nt.x=nt.mesh.position.x;nt.z=nt.mesh.position.z;}}
+ demolishing=false;
+ return removed;
 }
 function endGame(){
  if(gameEnded)return;gameEnded=true;vibrate(80);shake(1,.7);flash(.5,'#ff0044');
@@ -201,7 +226,7 @@ function endGame(){
 }
 function restartGame(){
  stack.forEach(l=>towerGroup.remove(l.mesh));overhangs.forEach(o=>scene.remove(o.mesh));particles.forEach(p=>scene.remove(p.mesh));
- stack=[];overhangs=[];particles=[];score=0;speed=.15;gameEnded=false;gameStarted=false;currentDirection='x';bombs=0;bombProgress=0;
+ stack=[];overhangs=[];particles=[];score=0;speed=.15;gameEnded=false;gameStarted=false;currentDirection='x';bombs=0;bombProgress=0;demolishing=false;demolishSeq++;
  currentSpecial=null;specialCountdown=5;perfectStreak=0;
  shakeTime=shakeMag=0;
  $('gameover').style.display='none';$('special-banner').textContent='';$('score').textContent='0';
@@ -245,7 +270,6 @@ function animation(){
   if(top.special==='tnt'){top.mesh.material.emissive.setHex(Math.sin(blinkT*18)>0?0xff2222:0x440000);const puls=1+Math.sin(blinkT*18)*0.04;top.mesh.scale.y=boxHeight*puls;}
   if(top.special==='coin'){top.mesh.rotation.y+=0.06;try{top.mesh.material.emissive.setHex(Math.sin(blinkT*9)>0?0xcc9900:0x554400);}catch(e){}}
   if(top.special==='magnet'){try{top.mesh.material.emissive.setHex(Math.sin(blinkT*10)>0?0x00aaff:0x003355);}catch(e){}}
-  if(top.special==='magnet'&&stack.length>1){const prev=stack[stack.length-2];const tg=prev.mesh.position[currentDirection];top.mesh.position[currentDirection]+=(tg-top.mesh.position[currentDirection])*0.02;}
   top.mesh.position[currentDirection]+=speed;
   if(top.mesh.position[currentDirection]>20)top.mesh.position[currentDirection]=-20;
  }
