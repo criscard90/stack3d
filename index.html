@@ -256,7 +256,7 @@ async function handlePlace(){
   currentDirection=currentDirection==='x'?'z':'x';speed+=0.005;
   currentSpecial=pickSpecial();
   if(currentSpecial)banner({tnt:'---- TNT IN ARRIVO ----',magnet:'---- MAGNETE IN ARRIVO ----',coin:'---- BLOCCO DORATO IN ARRIVO ----'}[currentSpecial],1800);
-  addLayer(currentDirection==='x'?-20:top.mesh.position.x,currentDirection==='z'?-20:top.mesh.position.z,top.width,top.depth,currentSpecial);
+  const ref=stack[stack.length-1];addLayer(currentDirection==='x'?-20:ref.mesh.position.x,currentDirection==='z'?-20:ref.mesh.position.z,ref.width,ref.depth,currentSpecial);
   frenzyMaybeTrigger();
  }else{endGame();}
 }
@@ -289,20 +289,22 @@ async function detonateTNT(){
  const below=Math.min(TNT_POWER,stack.length-3);
  if(below<=0)return 0;
  demolishing=true;const mySeq=++demolishSeq;
- banner('-'+below+' pezzi');flash(.6,'#ff3b30');shake(.9,.6);vibrate([60,40,60]);
- const wp=new THREE.Vector3();stack[stack.length-1].mesh.getWorldPosition(wp);spawnBurst(wp,['#ff3b30','#ff9500','#ffe27a'],40,7);
- // la TNT stessa esplode (non conteggiata), poi distruzione a cascata dei pezzi sotto: uno alla volta
+ banner('-'+below+' pezzi');flash(.7,'#ff9500');shake(1.2,.7);vibrate([80,50,80]);
+ const wp=new THREE.Vector3();stack[stack.length-1].mesh.getWorldPosition(wp);spawnBurst(wp,['#ff9500','#ff3b30','#ffe27a','#555555'],60,8);
+ // la TNT stessa esplode (non conteggiata), poi distruzione a cascata dei pezzi sotto: uno alla volta dall'alto verso il basso, identica alla bomba (si tocca solo la Y, mai X/Z: niente slittamenti)
  const tnt=stack.pop();towerGroup.remove(tnt.mesh);
  // distruzione a cascata: un pezzo alla volta
  let removed=0;
  while(removed<below){
   if(mySeq!==demolishSeq||gameEnded)break;
-  const l=stack.pop();const pp=new THREE.Vector3();l.mesh.getWorldPosition(pp);spawnBurst(pp,['#ff3b30','#555555'],16,5);towerGroup.remove(l.mesh);removed++;
-  flash(.25,'#ff3b30');shake(.3,.25);vibrate(30);
+  const l=stack.pop();const pp=new THREE.Vector3();l.mesh.getWorldPosition(pp);spawnBurst(pp,['#ff9500','#ff3b30','#555555'],16,5);towerGroup.remove(l.mesh);removed++;
+  flash(.25,'#ff9500');shake(.3,.25);vibrate(30);
   for(let i=0;i<stack.length;i++){stack[i].mesh.position.y=boxHeight*i;}
-  await sleep(170);
+  await sleep(130);
  }
- const nt=stack[stack.length-1];if(nt){const pv=stack[stack.length-2];if(pv){nt.mesh.position.x=pv.mesh.position.x;nt.mesh.position.z=pv.mesh.position.z;nt.x=nt.mesh.position.x;nt.z=nt.mesh.position.z;}}
+ // NIENTE snap orizzontale del top fisso (era quello che faceva "slittare" i pezzi): i blocchi restano dove sono
+ // abbassa subito la camera insieme alla torre tagliata, come la bomba
+ const targetY=20+(stack.length-1)*boxHeight;camera.position.y=Math.min(camera.position.y,targetY);camera.lookAt(0,camera.position.y-20,0);
  demolishing=false;
  return removed;
 }
