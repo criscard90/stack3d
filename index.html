@@ -303,7 +303,8 @@ async function detonateTNT(){
   for(let i=0;i<stack.length;i++){stack[i].mesh.position.y=boxHeight*i;}
   await sleep(130);
  }
- // NIENTE snap orizzontale del top fisso (era quello che faceva "slittare" i pezzi): i blocchi restano dove sono
+ // ricentro la nuova cima sul blocco sotto: la cascata toglie 2 pezzi in mezzo e la cima resterebbe scostata di lato
+ if(stack.length>=2){const nt=stack[stack.length-1],nb=stack[stack.length-2];nt.mesh.position.x=nb.mesh.position.x;nt.mesh.position.z=nb.mesh.position.z;nt.x=nt.mesh.position.x;nt.z=nt.mesh.position.z;}
  // abbassa subito la camera insieme alla torre tagliata, come la bomba
  const targetY=20+(stack.length-1)*boxHeight;camera.position.y=Math.min(camera.position.y,targetY);camera.lookAt(0,camera.position.y-20,0);
  demolishing=false;
@@ -366,7 +367,7 @@ function animation(){
   if(top.special==='tnt'){top.mesh.material.emissive.setHex(Math.sin(blinkT*18)>0?0xff2222:0x440000);const puls=1+Math.sin(blinkT*18)*0.04;top.mesh.scale.y=boxHeight*puls;}
   if(top.special==='coin'){top.mesh.rotation.y+=0.06;try{top.mesh.material.emissive.setHex(Math.sin(blinkT*9)>0?0xcc9900:0x554400);}catch(e){}}
   if(top.special==='magnet'){try{top.mesh.material.emissive.setHex(Math.sin(blinkT*10)>0?0x00aaff:0x003355);}catch(e){}}
-  if(!frenzyActive){top.mesh.position[currentDirection]+=speed;
+  if(!frenzyActive&&!demolishing){top.mesh.position[currentDirection]+=speed;
    if(top.mesh.position[currentDirection]>20)top.mesh.position[currentDirection]=-20;}
  }
  // sfere frenzy: cadono dall'alto verso la cima, all'impatto verifica il match colore
