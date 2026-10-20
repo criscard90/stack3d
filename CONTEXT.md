@@ -1,8 +1,22 @@
 # STACK3D — Contesto Progetto (20/10/2026, commit e27700d)
 
-> Single-file game: `index.html` (700 righe). README vuoto.
-> Stack: Three.js r128 via CDN, nessun build. Persistenza `localStorage`.
+> Single-file game: `index.html` (1043 righe di JS inline). README minimale.
+> Stack: Three.js r128 via CDN + **Tone.js 14.7.77 via CDN**, nessun build. Persistenza `localStorage`.
 > Branch `main` sync con origin. Ultimo pull: `56e8504..e27700d` (12 commit).
+
+## 0. Audio: due sistemi paralleli (ZzFX + Tone.js)
+- **SFX**: ZzFX (procedurale, nessun asset) via `zzfxP()` + layer Tone.js per timbro/Tone.
+- **Musica**: Tone.js sequencer 16n (`toneSeq`) con pad+basso+batteria+arp; fallback ZzFX (`musicTick`) se Tone non è disponibile.
+- **Due bus Tone distinti**: `toneBuses.music` (gain 0.9) e `toneBuses.sfx` (gain 1.0), entrambi → Compressor → Destination.
+- **Riverbero SFX separato** (`toneFx.sfxVerb`): `chime` (SFX) e `toneSwish()` usano il riverbero SFX, non quello della musica — altrimenti spegnere la musica tagliava il riverbero degli effetti e viceversa.
+- `musicOn` controlla **solo** la musica; `soundOn` controlla **solo** gli SFX. Non si muta mai `Tone.Destination.mute`.
+- `Tone.Destination.volume` = master volume utente (`stack3d_vol`).
+- Sequencer registrato **una sola volta** (`toneScheduled`), mai duplicato dopo pause/riprese.
+- `Tone.Transport` parte solo con `AudioContext` in stato `running` (`toneCtxRunning()`); il watcher lo riavvia se il context diventa running in ritardo (autoplay).
+- Se Tone si inizializza dopo l'avvio del fallback ZzFX, il fallback viene **spento** (niente doppia musica).
+- HUD: pillola `#music-pill` (modalità, etichetta, bpm, barre intensità); opacità legata **solo** a `musicOn` (spegnere gli SFX non la dimmina).
+- Modalità musicali (`TONE_MODES`): menu(chill 78) / game(groove 104) / frenzy(hyper 140) / danger(tensione 92).
+- Intensità dinamica `toneTarget()`: cresce con score, perfect streak e altezza torre; crossfade via `toneApply()`.
 
 ## 1. Core gameplay
 - Torre box 3x3, `boxHeight=1`, base fissa. Moving oscilla x/z tra -20/+20.
@@ -53,9 +67,12 @@
 e48fb25 shop espanso; f523f1a shop a tab; 76a9b36 margine; 7292e6a colori sezioni; a70f4dc stella; f5684cf nebbiolina gold; 8079ce5 frenzy da 50; ab5528a forma live; 08a80c7 frenzy permanente; 7acd307 bottoni; 401763f consumabili persistenti; e27700d chip subito dopo Attiva.
 
 ## 8. Debiti / note
-- Tutto in un file, nessun test. runMagnet solo flag HUD (effetto globale non applicato?). bridge/ solo infra Cline, non di gioco. README vuoto.
+- Tutto in un file, nessun test automatici nel repo. runMagnet solo flag HUD (effetto globale non applicato?). bridge/ solo infra Cline, non di gioco. README minimale.
 - Tuning: BOMB_POWER=10, TNT_POWER=2, FRENZY_TIME=5, SPEED_INC=0.005.
+- **Bug 7 (fixato)**: in `handlePlace()` la `const on=[]` era dichiarata dentro `if(firstPlace){...}` ma letta fuori → `ReferenceError: on is not defined` al primo tap, che abortiva il piazzamento del primo blocco di ogni partita. Ora `let on=[]` hoisted e `if(firstPlace)musicMode='game'`.
+- Verifica audio: harness jsdom in `/tmp/s3dtest` (stub Three/Tone/WebAudio) — 74 test (funzionali, toggle, isolamento bus, HUD, stress) tutti verdi. Non incluso nel repo.
 
 ## 9. Run
 Aprire index.html (CDN internet). Click piazzare, Menu per shop, bottone bomba, frenzy auto dopo 50.
+Primo gesto utente necessario per sbloccare l'AudioContext (autoplay policy): la musica parte al primo tocco/click.
 
