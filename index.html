@@ -50,10 +50,15 @@ canvas{display:block}
 .shop-row{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 16px}
 .shop-item{flex:1 1 140px;border:1px solid rgba(255,255,255,.2);border-radius:12px;padding:10px;text-align:center;background:rgba(255,255,255,.05)}
 .shop-item.active{border-color:var(--accent);box-shadow:0 0 12px var(--accent)}
-.shop-item button{margin-top:8px;width:100%;padding:8px;border-radius:10px;border:0;cursor:pointer;font-weight:700}
-.shop-item button:disabled{opacity:.5;cursor:default}
+.shop-item button{margin-top:8px;width:100%;padding:8px;border-radius:10px;border:1px solid transparent;cursor:pointer;font-weight:700;font-family:inherit;font-size:.86rem;transition:filter .15s,box-shadow .15s}
+.shop-item button:not(:disabled):hover{filter:brightness(1.12)}
+.shop-item button:disabled{cursor:default;opacity:.75}
+.shop-item button.buy{background:#ffd966;color:#3a2b00;box-shadow:0 2px 8px rgba(255,215,0,.3)}
+.shop-item button.use{background:rgba(1,205,254,.14);color:#7df9ff;border-color:#01cdfe}
+.shop-item button.act{background:#2dff5e;color:#04340f;box-shadow:0 2px 8px rgba(45,255,94,.3)}
+.shop-item button.on{background:rgba(45,255,94,.12);color:#2dff5e;border-color:#2dff5e}
 .shop-item .btns{display:flex;gap:4px;margin-top:8px}
-.shop-item .btns button{margin-top:0;flex:1;width:auto;padding:8px;border-radius:10px;border:0;cursor:pointer;font-weight:700}
+.shop-item .btns button{margin-top:0;flex:1;width:auto;padding:8px;border-radius:10px;cursor:pointer;font-weight:700;font-family:inherit;font-size:.86rem}
 #score-frame{display:inline-block;padding:4px 20px 8px;border-radius:18px;border:2px solid transparent;margin-top:2px}
 #score-frame.f-gold{border-color:#ffd700;box-shadow:0 0 18px rgba(255,215,0,.55),inset 0 0 14px rgba(255,215,0,.22)}
 #score-frame.f-neon{border-color:var(--accent);box-shadow:0 0 18px var(--accent),inset 0 0 14px rgba(255,255,255,.12);animation:framePulse 1.8s ease-in-out infinite}
@@ -567,7 +572,9 @@ function buildEquipRow(rowId,data,key,label){
   const d=document.createElement('div');d.className='shop-item'+(equip[key]===id?' active':'');
   d.innerHTML='<b>'+it.name+'</b><br><small>'+(it.price===0?'Gratis':'monete '+it.price)+'</small><br>';
   const b=document.createElement('button');
-  b.textContent=ownedNow?(equip[key]===id?'Attivo':'Usa'):'Compra';
+  if(!ownedNow){b.textContent='Compra';b.className='buy';}
+  else if(equip[key]===id){b.textContent='✓ Attivo';b.className='on';b.disabled=true;}
+  else{b.textContent='Usa';b.className='use';}
   b.onclick=()=>{if(!ownedNow){if(coins<it.price){alert('Monete insufficienti!');return;}coins-=it.price;owned.push(key+':'+id);}
    equip[key]=id;saveMeta();refreshHUD();buildShop();banner(label+': '+it.name);
    if(key==='frame')applyScoreFrame();if(key==='aura')buildAura();};
@@ -581,11 +588,11 @@ function buildConsumables(){
   const d=document.createElement('div');d.className='shop-item'+(pending[k]?' active':'');
   d.innerHTML='<b>'+c.name+'</b><br><small>monete '+c.price+'</small><br><small style="opacity:.8">'+c.desc+'</small><br><small>In scorta: '+inv[k]+'</small>';
   const wrap=document.createElement('div');wrap.className='btns';
-  const bc=document.createElement('button');bc.textContent='Compra';
+  const bc=document.createElement('button');bc.textContent='Compra';bc.className='buy';
   bc.onclick=()=>{if(coins<c.price){alert('Monete insufficienti!');return;}coins-=c.price;inv[k]++;saveMeta();refreshHUD();buildShop();};
   const ba=document.createElement('button');
-  if(pending[k]){ba.textContent='✓ Attivo';ba.disabled=true;}
-  else{ba.textContent='Attiva';ba.disabled=!(inv[k]>0)||locked;
+  if(pending[k]){ba.textContent='✓ Attivo';ba.className='on';ba.disabled=true;}
+  else{ba.textContent='Attiva';ba.className='act';ba.disabled=!(inv[k]>0)||locked;
    if(locked&&inv[k]>0)ba.title='Disponibile solo prima del primo blocco';
    ba.onclick=()=>{if(inv[k]<=0||locked||pending[k])return;inv[k]--;pending[k]=true;saveMeta();refreshHUD();buildShop();banner(c.name+' in scorta per la prossima partita!');};}
   wrap.appendChild(bc);wrap.appendChild(ba);d.appendChild(wrap);row.appendChild(d);
@@ -597,16 +604,16 @@ function buildUpgrades(){
   const d=document.createElement('div');d.className='shop-item'+(lv>0?' active':'');
   d.innerHTML='<b>'+u.name+'</b><br><small>'+u.desc+'</small><br><small style="color:#ffd966">'+'●'.repeat(lv)+'○'.repeat(u.max-lv)+'</small><br><small>Livello '+lv+'/'+u.max+' · '+u.price+' monete</small>';
   const b=document.createElement('button');
-  if(lv>=u.max){b.textContent='MAX';b.disabled=true;}
-  else{b.textContent='Migliora';b.onclick=()=>{if(coins<u.price){alert('Monete insufficienti!');return;}coins-=u.price;upg[k]=lv+1;saveMeta();refreshHUD();buildShop();banner(u.name+' → livello '+upg[k]+'!');};}
+  if(lv>=u.max){b.textContent='MAX';b.className='on';b.disabled=true;}
+  else{b.textContent='Migliora';b.className='buy';b.onclick=()=>{if(coins<u.price){alert('Monete insufficienti!');return;}coins-=u.price;upg[k]=lv+1;saveMeta();refreshHUD();buildShop();banner(u.name+' → livello '+upg[k]+'!');};}
   d.appendChild(b);row.appendChild(d);
  });
 }
 function buildShop(){
  const tw=$('themes');tw.innerHTML='';
- Object.keys(THEMES).forEach(id=>{const t=THEMES[id];const d=document.createElement('div');d.className='shop-item'+(id===themeId?' active':'');d.innerHTML='<b>'+t.name+'</b><br><small>'+(t.price===0?'Gratis':'monete '+t.price)+'</small><br>';const b=document.createElement('button');b.textContent=owned.indexOf(id)>=0?(id===themeId?'Attivo':'Usa'):'Compra';b.onclick=()=>{if(owned.indexOf(id)<0){if(coins<t.price){alert('Monete insufficienti! Raccogli monete oro e perfect.');return;}coins-=t.price;owned.push(id);}applyTheme(id);refreshHUD();buildShop();};d.appendChild(b);tw.appendChild(d);});
+ Object.keys(THEMES).forEach(id=>{const t=THEMES[id];const d=document.createElement('div');d.className='shop-item'+(id===themeId?' active':'');d.innerHTML='<b>'+t.name+'</b><br><small>'+(t.price===0?'Gratis':'monete '+t.price)+'</small><br>';const b=document.createElement('button');const hasT=owned.indexOf(id)>=0;b.textContent=!hasT?'Compra':(id===themeId?'✓ Attivo':'Usa');b.className=!hasT?'buy':(id===themeId?'on':'use');if(hasT&&id===themeId)b.disabled=true;b.onclick=()=>{if(owned.indexOf(id)<0){if(coins<t.price){alert('Monete insufficienti! Raccogli monete oro e perfect.');return;}coins-=t.price;owned.push(id);}applyTheme(id);refreshHUD();buildShop();};d.appendChild(b);tw.appendChild(d);});
  const sw=$('shapes');sw.innerHTML='';
- Object.keys(SHAPES).forEach(id=>{const s=SHAPES[id];const d=document.createElement('div');d.className='shop-item'+(id===shapeId?' active':'');d.innerHTML='<b>'+s.name+'</b><br><small>'+(s.price===0?'Gratis':'monete '+s.price)+'</small><br>';const b=document.createElement('button');b.textContent=owned.indexOf(id)>=0?(id===shapeId?'Attivo':'Usa'):'Compra';b.onclick=()=>{if(owned.indexOf(id)<0){if(coins<s.price){alert('Monete insufficienti!');return;}coins-=s.price;owned.push(id);}shapeId=id;rebuildShape();saveMeta();refreshHUD();buildShop();banner('Forma: '+s.name);};d.appendChild(b);sw.appendChild(d);});
+ Object.keys(SHAPES).forEach(id=>{const s=SHAPES[id];const d=document.createElement('div');d.className='shop-item'+(id===shapeId?' active':'');d.innerHTML='<b>'+s.name+'</b><br><small>'+(s.price===0?'Gratis':'monete '+s.price)+'</small><br>';const b=document.createElement('button');const hasS=owned.indexOf(id)>=0;b.textContent=!hasS?'Compra':(id===shapeId?'✓ Attivo':'Usa');b.className=!hasS?'buy':(id===shapeId?'on':'use');if(hasS&&id===shapeId)b.disabled=true;b.onclick=()=>{if(owned.indexOf(id)<0){if(coins<s.price){alert('Monete insufficienti!');return;}coins-=s.price;owned.push(id);}shapeId=id;rebuildShape();saveMeta();refreshHUD();buildShop();banner('Forma: '+s.name);};d.appendChild(b);sw.appendChild(d);});
  buildEquipRow('trails',TRAILS,'trail','Scia');
  buildEquipRow('cutefx',CUTEFX,'cut','Effetto taglio');
  buildEquipRow('auras',AURAS,'aura','Aura');
