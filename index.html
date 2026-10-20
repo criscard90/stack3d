@@ -488,14 +488,13 @@ function updateBlastHUD(){
  if(i)i.innerHTML='Ondata '+Math.min(blastWave,BLAST_WAVES)+'/'+BLAST_WAVES+' · 🔴'+cnt.red+' 🟢'+cnt.green+' 🔵'+cnt.blue+' 🟡'+cnt.yellow+' · Distrutti: '+blastHits+' · '+Math.max(0,blastTimeLeft).toFixed(1)+'s';
 }
 function explodeBlast(color){
- if(!blastActive||gameEnded||demolishing||blastUsed)return;
- blastUsed=true;setBlastButtonsDisabled(true);
+ if(!blastActive||gameEnded||demolishing)return;
  const idxs=[];
  for(let i=stack.length-2;i>=2;i--){if(stack[i].frenzyColor===color)idxs.push(i);}
  if(!idxs.length){
-  banner('Nessun blocco '+color+'!');
   const n=frenzyTop();const pp=n?new THREE.Vector3(n.mesh.position.x,n.mesh.position.y+1,n.mesh.position.z):new THREE.Vector3(0,stack.length,0);
   spawnBurst(pp,['#888888','#555555'],10,4);vibrate(20);
+  endBlast('Nessun blocco '+color+'! Color Blast finito!');
   return;
  }
  let removed=0;
@@ -510,9 +509,9 @@ function explodeBlast(color){
  flash(.35,FRENZY_CSS[color]);shake(.35,.3);vibrate(40);
  for(let i=0;i<stack.length;i++){stack[i].mesh.position.y=boxHeight*i;}
  refreshHUD();updateBlastHUD();
- banner('💥 +'+removed+' '+color.toUpperCase()+'!');
+ endBlast('💥 +'+removed+' '+color.toUpperCase()+'! Color Blast finito!');
 }
-function endBlast(){
+function endBlast(finalMsg){
  if(!blastActive)return;
  blastActive=false;blastUsed=false;
  setBlastButtonsDisabled(false);
@@ -523,7 +522,7 @@ function endBlast(){
  // come endFrenzy: adatta il pezzo in movimento al top fisico rimasto, speed invariata
  const topNow=stack[stack.length-2];const moving=stack[stack.length-1];
  if(topNow&&moving){moving.width=topNow.width;moving.depth=topNow.depth;moving.mesh.scale.x=Math.max(topNow.width,.001);moving.mesh.scale.z=Math.max(topNow.depth,.001);moving.mesh.position.x=topNow.mesh.position.x;moving.mesh.position.z=topNow.mesh.position.z;moving.x=moving.mesh.position.x;moving.z=moving.mesh.position.z;moving.mesh.position.y=boxHeight*(stack.length-1);}
- banner('Color Blast finito! -'+blastHits+' pezzi');flash(.5,'#ffffff');saveMeta();refreshHUD();
+ banner(finalMsg||('Color Blast finito! -'+blastHits+' pezzi'));flash(.5,'#ffffff');saveMeta();refreshHUD();
  blastSinceCheck=0;
 }
 

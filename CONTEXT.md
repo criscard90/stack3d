@@ -34,8 +34,8 @@
 - Trigger: ogni 15 blocchi, 10% chance, solo se sbloccato + len>4 + NON durante frenzy/demolizioni (mutua esclusione con frenzy).
 - Durata 8s = 4 ondate x 2s (`BLAST_DURATION/WAVES/WAVE_TIME`). A ogni ondata TUTTA la torre (tranne 2 basi + moving) si ricolora con nuova combinazione casuale dei 4 colori (riuso `frenzyColorize`, salva/ripristina origColor).
 - HUD `#blast-hud` dedicato (fixato id duplicato `frenzy-btns` -> `blast-btns` + selettore CSS `.blast-btns` -> `#blast-btns`): 4 tasti colore, timer, conteggio live per colore + ondata/distrutti/secondi.
-- `explodeBlast(color)`: rimuove TUTTI i blocchi di quel colore in un colpo (indici da len-2 a 2, mai basi/moving), +1 score e +2 coins a blocco; se nessun blocco di quel colore: banner + FX grigia. Tasti 1-4 anche da tastiera.
-- Fine: ripristino colori/scala, moving adattato al top fisico (come frenzy), speed invariata, `saveMeta+refreshHUD`.
+- `explodeBlast(color)`: ONE-SHOT — rimuove TUTTI i blocchi di quel colore in un colpo (indici da len-2 a 2, mai basi/moving), +1 score e +2 coins a blocco, poi chiama subito `endBlast(msg)` (evento finito, tasti riabilitati, piazzamento sbloccato); se nessun blocco di quel colore: FX grigia + `endBlast` con messaggio. Tasti 1-4 anche da tastiera.
+- Fine (`endBlast(finalMsg)`): messaggio custom se one-shot altrimenti riepilogo, ripristino colori/scala, moving adattato al top fisico (come frenzy), speed invariata, `saveMeta+refreshHUD`. Lo scadere degli 8s chiude l'evento solo se il giocatore non ha premuto alcun colore.
 - Guardie: `handlePlace`/Space/B/blast-bomba bloccati durante blast, `pickSpecial` null, `startFrenzy` bloccato durante blast, cleanup in `endGame`/`restartGame`, pulse scala condiviso frenzy+blast in animation.
 ## 5. Shop (tab Estetica/Consumabili/Miglioramenti)
 - Menu alto-dx -> popup Ricomincia/Negozio. Header/footer sticky.
