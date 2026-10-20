@@ -269,20 +269,42 @@ function specialTexture(kind){
  else if(kind==='magnet'){g.fillStyle='#0b5fa5';g.fillRect(0,0,128,128);g.fillStyle='#e74c3c';g.fillRect(0,0,128,26);g.fillRect(0,102,128,26);g.fillStyle='#fff';g.font='bold 64px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText('U',64,66);g.font='bold 22px sans-serif';g.fillText('N+S',64,100);}
  return new THREE.CanvasTexture(c);
 }
-function makeMesh(w,h,d,special){
- let geo;
- if(shapeId==='cylinder')geo=new THREE.CylinderGeometry(.5,.5,1,28);
- else if(shapeId==='crystal')geo=new THREE.CylinderGeometry(.5,.5,1,6);
- else if(shapeId==='stella'){
+function blockGeo(){
+ if(shapeId==='cylinder')return new THREE.CylinderGeometry(.5,.5,1,28);
+ if(shapeId==='crystal')return new THREE.CylinderGeometry(.5,.5,1,6);
+ if(shapeId==='stella'){
   // stella a 5 punte estrusa: sagoma in XZ (volta verso l'alto), spessore 1 sull'asse Y
   const sh=new THREE.Shape();const R=.5,r=.225;
   for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5;const rad=(i%2===0)?R:r;const x=Math.cos(a)*rad,y=Math.sin(a)*rad;
    if(i===0)sh.moveTo(x,y);else sh.lineTo(x,y);}
   sh.closePath();
-  geo=new THREE.ExtrudeGeometry(sh,{depth:1,bevelEnabled:false});
-  geo.translate(0,0,-.5);geo.rotateX(-Math.PI/2);
+  const g=new THREE.ExtrudeGeometry(sh,{depth:1,bevelEnabled:false});
+  g.translate(0,0,-.5);g.rotateX(-Math.PI/2);
+  return g;
  }
- else geo=new THREE.BoxGeometry(1,1,1);
+ return new THREE.BoxGeometry(1,1,1);
+}
+function rebuildShape(){
+ // applica subito la nuova forma a tutti i blocchi esistenti (torre + pezzo in movimento),
+ // preservando materiale/colori, scala, posizione, stato frenzy e outline dei speciali
+ stack.forEach(l=>{
+  const m=l.mesh;if(!m)return;
+  const old=m.geometry;const geo=blockGeo();
+  m.geometry=geo;
+  try{if(old&&old.dispose)old.dispose();}catch(e){}
+  if(l.special){
+   try{m.children.slice().forEach(ch=>{if(ch.isLineSegments){m.remove(ch);if(ch.geometry&&ch.geometry.dispose)ch.geometry.dispose();if(ch.material&&ch.material.dispose)ch.material.dispose();}});}catch(e){}
+   try{
+    const eg=new THREE.EdgesGeometry(geo);const lc=l.special==='coin'?0xfff176:(l.special==='tnt'?0xffffff:0x002233);
+    const lines=new THREE.LineSegments(eg,new THREE.LineBasicMaterial({color:lc}));lines.scale.set(1.02,1.02,1.02);
+    if(l.frenzyColor){lines.visible=false;lines.userData.frenzyHidden=true;}
+    m.add(lines);
+   }catch(e){}
+  }
+ });
+}
+function makeMesh(w,h,d,special){
+ let geo=blockGeo();
  let color,emissive=0x000000,map=null;
  const lvl=stack.length;
  if(special==='tnt'){color=new THREE.Color(0xff2d20);emissive=0x660000;map=specialTexture('tnt');}
@@ -582,7 +604,7 @@ function buildShop(){
  const tw=$('themes');tw.innerHTML='';
  Object.keys(THEMES).forEach(id=>{const t=THEMES[id];const d=document.createElement('div');d.className='shop-item'+(id===themeId?' active':'');d.innerHTML='<b>'+t.name+'</b><br><small>'+(t.price===0?'Gratis':'monete '+t.price)+'</small><br>';const b=document.createElement('button');b.textContent=owned.indexOf(id)>=0?(id===themeId?'Attivo':'Usa'):'Compra';b.onclick=()=>{if(owned.indexOf(id)<0){if(coins<t.price){alert('Monete insufficienti! Raccogli monete oro e perfect.');return;}coins-=t.price;owned.push(id);}applyTheme(id);refreshHUD();buildShop();};d.appendChild(b);tw.appendChild(d);});
  const sw=$('shapes');sw.innerHTML='';
- Object.keys(SHAPES).forEach(id=>{const s=SHAPES[id];const d=document.createElement('div');d.className='shop-item'+(id===shapeId?' active':'');d.innerHTML='<b>'+s.name+'</b><br><small>'+(s.price===0?'Gratis':'monete '+s.price)+'</small><br>';const b=document.createElement('button');b.textContent=owned.indexOf(id)>=0?(id===shapeId?'Attivo':'Usa'):'Compra';b.onclick=()=>{if(owned.indexOf(id)<0){if(coins<s.price){alert('Monete insufficienti!');return;}coins-=s.price;owned.push(id);}shapeId=id;saveMeta();refreshHUD();buildShop();banner('Forma: '+s.name);};d.appendChild(b);sw.appendChild(d);});
+ Object.keys(SHAPES).forEach(id=>{const s=SHAPES[id];const d=document.createElement('div');d.className='shop-item'+(id===shapeId?' active':'');d.innerHTML='<b>'+s.name+'</b><br><small>'+(s.price===0?'Gratis':'monete '+s.price)+'</small><br>';const b=document.createElement('button');b.textContent=owned.indexOf(id)>=0?(id===shapeId?'Attivo':'Usa'):'Compra';b.onclick=()=>{if(owned.indexOf(id)<0){if(coins<s.price){alert('Monete insufficienti!');return;}coins-=s.price;owned.push(id);}shapeId=id;rebuildShape();saveMeta();refreshHUD();buildShop();banner('Forma: '+s.name);};d.appendChild(b);sw.appendChild(d);});
  buildEquipRow('trails',TRAILS,'trail','Scia');
  buildEquipRow('cutefx',CUTEFX,'cut','Effetto taglio');
  buildEquipRow('auras',AURAS,'aura','Aura');
