@@ -49,13 +49,25 @@ canvas{display:block}
 .shop-item{flex:1 1 140px;border:1px solid rgba(255,255,255,.2);border-radius:12px;padding:10px;text-align:center;background:rgba(255,255,255,.05)}
 .shop-item.active{border-color:var(--accent);box-shadow:0 0 12px var(--accent)}
 .shop-item button{margin-top:8px;width:100%;padding:8px;border-radius:10px;border:0;cursor:pointer;font-weight:700}
+.shop-item button:disabled{opacity:.5;cursor:default}
+.shop-item .btns{display:flex;gap:4px;margin-top:8px}
+.shop-item .btns button{margin-top:0;flex:1;width:auto;padding:8px;border-radius:10px;border:0;cursor:pointer;font-weight:700}
+#score-frame{display:inline-block;padding:4px 20px 8px;border-radius:18px;border:2px solid transparent;margin-top:2px}
+#score-frame.f-gold{border-color:#ffd700;box-shadow:0 0 18px rgba(255,215,0,.55),inset 0 0 14px rgba(255,215,0,.22)}
+#score-frame.f-neon{border-color:var(--accent);box-shadow:0 0 18px var(--accent),inset 0 0 14px rgba(255,255,255,.12);animation:framePulse 1.8s ease-in-out infinite}
+#score-frame.f-animated{background:linear-gradient(rgba(26,26,46,.6),rgba(26,26,46,.6)) padding-box,linear-gradient(90deg,#ff2d2d,#ffe72d,#2dff5e,#2d7bff,#ff71ce,#ff2d2d) border-box;border:3px solid transparent;background-size:100% 100%,400% 100%;animation:frameSpin 3.5s linear infinite}
+@keyframes framePulse{50%{box-shadow:0 0 30px var(--accent)}}
+@keyframes frameSpin{to{background-position:0 0,400% 0}}
+#badge{font-size:.85rem;font-weight:700;letter-spacing:.03em;min-height:1.2em;color:#ffd966;text-shadow:0 2px 6px #000}
+#shop h3{margin:18px 0 2px;font-size:.95rem;letter-spacing:.02em}
+#shop .hint{font-size:.75rem;opacity:.72;margin:0 0 4px}
 @media(max-width:600px){#score{font-size:3rem}.pill{font-size:.72rem;padding:2px 8px}}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
-<div id="hud-left"><div class="pill" id="coins">🪙 0</div><div class="pill" id="perfect-pill">Perfect x0</div></div>
-<div id="ui"><div id="score">0</div><div id="high-score">Record: 0</div>
+<div id="hud-left"><div class="pill" id="coins">🪙 0</div><div class="pill" id="perfect-pill">Perfect x0</div><div class="pill" id="run-power" style="display:none"></div></div>
+<div id="ui"><div id="score-frame"><div id="score">0</div><div id="high-score">Record: 0</div></div><div id="badge"></div>
 <!-- HUD monete/perfect spostato in alto a sinistra -->
 <div id="special-banner"></div>
 </div>
@@ -65,7 +77,7 @@ canvas{display:block}
 <div id="menu"><button class="btn" id="menu-btn" aria-label="Menu">&#9776;</button><div id="menu-popup"><button class="btn" id="restart-btn">Restart</button><button class="btn" id="shop-btn">Shop</button></div></div>
 <div id="flash"></div>
 <div id="gameover"><div class="card"><h1>GAME OVER</h1><p id="go-reason"></p><p id="go-stats"></p><button class="btn" id="go-retry">Gioca ancora</button> <button class="btn" id="go-shop">Shop</button></div></div>
-<div id="shop"><div class="card"><h2 style="margin:0">Negozio <span id="shop-coins" style="float:right">0</span></h2><p style="opacity:.8">Temi e forme salvati in localStorage. Monete da blocchi oro e serie Perfect.</p><h3>Temi grafici</h3><div class="shop-row" id="themes"></div><h3>Forme blocchi</h3><div class="shop-row" id="shapes"></div><button class="btn" id="shop-close" style="width:100%">Chiudi</button></div></div>
+<div id="shop"><div class="card"><h2 style="margin:0">Negozio <span id="shop-coins" style="float:right">0</span></h2><p style="opacity:.8">Temi, forme, scie, effetti, auree e cornici. Consumabili solo prima del primo blocco. Titoli (badge) si sbloccano con il punteggio.</p><h3>Temi grafici</h3><div class="shop-row" id="themes"></div><h3>Forme blocchi</h3><div class="shop-row" id="shapes"></div><h3>Scie dei blocchi</h3><div class="shop-row" id="trails"></div><h3>Effetti di distruzione</h3><div class="shop-row" id="cutefx"></div><h3>Auree della torre</h3><div class="shop-row" id="auras"></div><h3>Cornici del punteggio</h3><div class="shop-row" id="frames"></div><h3>Potenziamenti consumabili</h3><p class="hint">Attivabili solo prima di posizionare il primo blocco. All'attivazione vanno in scorta per la prossima partita.</p><div class="shop-row" id="consumables"></div><h3>Miglioramenti permanenti</h3><p class="hint">Si acquistano per livelli e restano per sempre.</p><div class="shop-row" id="upgrades"></div><button class="btn" id="shop-close" style="width:100%;margin-top:14px">Chiudi</button></div></div>
 <script>
 /* STACK 3D punti 3..7 GDD */
 let scene,camera,renderer,towerGroup,ambientLight,dirLight;
@@ -86,6 +98,58 @@ const FRENZY_CSS={red:'#ff2d2d',green:'#2dff5e',blue:'#2d7bff',yellow:'#ffe72d'}
 const FRENZY_CHECK_EVERY=15,FRENZY_CHANCE=0.10,FRENZY_DURATION=5;
 let frenzyActive=false,frenzyTimeLeft=0,frenzyTimerId=null,frenzySinceCheck=0,frenzyFlashId=null,frenzyStartLen=0,frenzyHits=0;
 let projectiles=[];
+// ===== SHOP: cataloghi (A estetici, B consumabili, C upgradabili, D cornici) =====
+const TRAILS={
+ none:{name:'Nessuna',price:0},
+ smoke:{name:'Fumo',price:30,colors:['#9aa0a6','#c7ccd1','#7c8288'],every:3,life:[18,34],power:.35,up:.55,g:.03,scale:.85},
+ stardust:{name:'Polvere di stelle',price:45,colors:['#ffffff','#fff6b0','#c1f0f6','#e0b3ff'],every:2,life:[24,42],power:.5,up:.25,g:-.02,scale:.5},
+ bubbles:{name:'Bolle',price:40,colors:['#bfefff','#8fdfff','#ffffff'],every:3,life:[30,48],power:.3,up:.6,g:-.05,scale:.95},
+ fire:{name:'Fuoco',price:55,colors:['#ff9500','#ff3b30','#ffe27a'],every:2,life:[14,26],power:.5,up:.85,g:-.05,scale:.7},
+ neon:{name:'Neon azzurro',price:55,colors:['#00c3ff','#7df9ff','#ffffff'],every:2,life:[20,32],power:.25,up:.2,g:0,scale:.6}
+};
+const CUTEFX={
+ none:{name:'Nessuno',price:0},
+ fireworks:{name:'Fuochi d\'artificio',price:60},
+ pixel:{name:'Pixel art 8-bit',price:50},
+ confetti:{name:'Coriandoli',price:40}
+};
+const AURAS={
+ none:{name:'Nessuna',price:0},
+ lightning:{name:'Fulmini elettrici',price:85},
+ gold:{name:'Aura dorata',price:70},
+ rings:{name:'Anelli cosmici',price:90}
+};
+const FRAMES={
+ none:{name:'Nessuna',price:0},
+ gold:{name:'Bordo dorato',price:50},
+ neon:{name:'Bordo neon',price:60},
+ animated:{name:'Bordo animato',price:100}
+};
+const CONSUMABLES={
+ life:{name:'Seconda Chance ❤️',price:60,desc:'Salva un blocco sbagliato dal Game Over'},
+ slow:{name:'Rallentatore ⏳',price:40,desc:'-20% velocità blocchi per i primi 15 turni'},
+ magnet:{name:'Calamita monete 🧲',price:50,desc:'+50% blocchi dorati per la partita'}
+};
+const UPGRADES={
+ tol:{name:'Ampiezza di Tolleranza',price:50,max:3,desc:'+0.05 margine Perfect per livello'},
+ combo:{name:'Moltiplicatore Combo',price:70,max:3,desc:'+1 moneta per Perfect e +5 ogni 3, per livello'},
+ frenzy:{name:'Timer Frenzy',price:60,max:2,desc:'Frenzy Color Blast dura 7s (I) o 10s (II)'}
+};
+const BADGES=[{score:30,name:'Architetto Novizio'},{score:50,name:'Maestro della Precisione'},{score:100,name:'Equilibrista Supremo'}];
+let equip={trail:'none',cut:'none',aura:'none',frame:'none'};
+let inv={life:0,slow:0,magnet:0};
+let upg={tol:0,combo:0,frenzy:0};
+let pending={life:false,slow:false,magnet:false};
+let runLife=false,runSlowLeft=0,runMagnet=false;
+let badges=[];
+try{equip=Object.assign({trail:'none',cut:'none',aura:'none',frame:'none'},JSON.parse(localStorage.getItem('stack3d_equip')||'{}'));}catch(e){}
+try{inv=Object.assign({life:0,slow:0,magnet:0},JSON.parse(localStorage.getItem('stack3d_inv')||'{}'));}catch(e){}
+try{upg=Object.assign({tol:0,combo:0,frenzy:0},JSON.parse(localStorage.getItem('stack3d_upg')||'{}'));}catch(e){}
+try{pending=Object.assign({life:false,slow:false,magnet:false},JSON.parse(localStorage.getItem('stack3d_pending')||'{}'));}catch(e){}
+try{badges=JSON.parse(localStorage.getItem('stack3d_badges')||'[]');}catch(e){badges=[];}
+if(!TRAILS[equip.trail])equip.trail='none';if(!CUTEFX[equip.cut])equip.cut='none';if(!AURAS[equip.aura])equip.aura='none';if(!FRAMES[equip.frame])equip.frame='none';
+let auraRoot=null,auraTick=0,trailTick=0;
+function frenzyDuration(){return upg.frenzy===1?7:(upg.frenzy===2?10:FRENZY_DURATION);}
 function randInt(a,b){return a+Math.floor(Math.random()*(b-a+1));}
 
 let shakeTime=0,shakeMag=0;
@@ -104,12 +168,55 @@ let shapeId=localStorage.getItem('stack3d_shape')||'cube';
 let owned=[];try{owned=JSON.parse(localStorage.getItem('stack3d_owned')||'["classic","cube"]');}catch(e){owned=['classic','cube'];}
 if(!THEMES[themeId])themeId='classic';if(!SHAPES[shapeId])shapeId='cube';
 const $=id=>document.getElementById(id);
-function saveMeta(){localStorage.setItem('stack3d_coins',coins);localStorage.setItem('stack3d_theme',themeId);localStorage.setItem('stack3d_shape',shapeId);localStorage.setItem('stack3d_owned',JSON.stringify(owned));localStorage.setItem('stack3d_beststreak',bestStreak);}
+function saveMeta(){localStorage.setItem('stack3d_coins',coins);localStorage.setItem('stack3d_theme',themeId);localStorage.setItem('stack3d_shape',shapeId);localStorage.setItem('stack3d_owned',JSON.stringify(owned));localStorage.setItem('stack3d_beststreak',bestStreak);localStorage.setItem('stack3d_equip',JSON.stringify(equip));localStorage.setItem('stack3d_inv',JSON.stringify(inv));localStorage.setItem('stack3d_upg',JSON.stringify(upg));localStorage.setItem('stack3d_pending',JSON.stringify(pending));localStorage.setItem('stack3d_badges',JSON.stringify(badges));}
 function vibrate(p){try{if(navigator.vibrate)navigator.vibrate(p);}catch(e){}}
 function flash(op,color){const f=$('flash');f.style.background=color||'#fff';f.style.opacity=op;setTimeout(()=>f.style.opacity=0,80);}
 function shake(m,t){shakeMag=Math.max(shakeMag,m);shakeTime=Math.max(shakeTime,t);}
 function banner(txt,ms){const b=$('special-banner');b.textContent=txt;clearTimeout(b._t);b._t=setTimeout(()=>b.textContent='',ms||2200);}
-function refreshHUD(){$('score').textContent=score;$('high-score').textContent='Record: '+highScore;$('coins').textContent='🪙 '+coins;$('perfect-pill').textContent='Perfect x'+perfectStreak;$('perfect-pill').classList.toggle('hot',perfectStreak>0);$('shop-coins').textContent='monete '+coins;const bb=$('bomb-btn'),bf=$('bomb-fill'),bl=$('bomb-label');if(bb){if(bl)bl.textContent='💣 '+bombs+'/'+BOMB_MAX;else bb.textContent='💣 '+bombs+'/'+BOMB_MAX;bb.disabled=bombs<=0||gameEnded;bb.classList.toggle('ready',bombs>0);}if(bf){bf.style.width=(bombs>=BOMB_MAX?100:(bombProgress/BOMB_EVERY*100))+'%';}}
+function checkBadges(){BADGES.forEach(b=>{if(score>=b.score&&badges.indexOf(b.name)<0){badges.push(b.name);saveMeta();banner('🏅 Titolo sbloccato: '+b.name+'!',3200);flash(.6,'#ffe72d');vibrate([40,40,80]);}});}
+function refreshHUD(){$('score').textContent=score;$('high-score').textContent='Record: '+highScore;$('coins').textContent='🪙 '+coins;$('perfect-pill').textContent='Perfect x'+perfectStreak;$('perfect-pill').classList.toggle('hot',perfectStreak>0);$('shop-coins').textContent='monete '+coins;const bb=$('bomb-btn'),bf=$('bomb-fill'),bl=$('bomb-label');if(bb){if(bl)bl.textContent='💣 '+bombs+'/'+BOMB_MAX;else bb.textContent='💣 '+bombs+'/'+BOMB_MAX;bb.disabled=bombs<=0||gameEnded;bb.classList.toggle('ready',bombs>0);}if(bf){bf.style.width=(bombs>=BOMB_MAX?100:(bombProgress/BOMB_EVERY*100))+'%';}checkBadges();const bn=$('badge');if(bn){const un=BADGES.filter(b=>badges.indexOf(b.name)>=0);bn.textContent=un.length?'🏅 '+un[un.length-1].name:'';}const rp=$('run-power');if(rp){const parts=[];if(runLife)parts.push('❤️ Seconda Chance');if(runSlowLeft>0)parts.push('⏳ Rallenta '+runSlowLeft);if(runMagnet)parts.push('🧲 Calamita');if(parts.length){rp.style.display='inline-flex';rp.textContent=parts.join(' · ');}else rp.style.display='none';}}
+function applyScoreFrame(){const f=$('score-frame');if(!f)return;f.className=equip.frame==='none'?'':'f-'+equip.frame;}
+function buildAura(){
+ if(!towerGroup)return;
+ if(!auraRoot){auraRoot=new THREE.Group();towerGroup.add(auraRoot);}
+ while(auraRoot.children.length){const c=auraRoot.children[0];auraRoot.remove(c);try{if(c.geometry)c.geometry.dispose();if(c.material&&c.material.dispose)c.material.dispose();}catch(e){}}
+ const id=equip.aura;
+ if(id==='gold'){
+  const r=new THREE.Mesh(new THREE.TorusGeometry(6.6,.14,10,72),new THREE.MeshBasicMaterial({color:0xffd700,transparent:true,opacity:.7}));
+  r.rotation.x=Math.PI/2;r.userData={kind:'gold',frac:.5};auraRoot.add(r);
+ }else if(id==='rings'){
+  const cols=[0xb388ff,0x7df9ff,0xff71ce];
+  for(let i=0;i<3;i++){
+   const rr=new THREE.Mesh(new THREE.TorusGeometry(6.2+i*1.2,.09,8,72),new THREE.MeshBasicMaterial({color:cols[i],transparent:true,opacity:.75}));
+   rr.userData={kind:'ring',i:i,frac:.28+i*.24};auraRoot.add(rr);
+  }
+ }
+ // id==='lightning': nessun mesh persistente, scintille generate in updateAura()
+}
+function updateAura(){
+ if(!auraRoot)return;
+ if(equip.aura==='lightning'&&!gameEnded&&stack.length>2){
+  auraTick++;
+  if(auraTick%7===0){
+   const a=Math.random()*Math.PI*2,rad=5.4+Math.random()*1.6;
+   const n=2+Math.floor(Math.random()*2);
+   for(let i=0;i<n;i++){
+    const pos=new THREE.Vector3(Math.cos(a)*rad+(Math.random()-.5)*1.6,Math.random()*Math.max(2,stack.length-1),Math.sin(a)*rad+(Math.random()-.5)*1.6);
+    towerGroup.localToWorld(pos);
+    pushParticle(pos,{colors:['#ffffff','#7df9ff','#ffe72d'],power:.5,up:.3,life:[8,16],g:.06,spin:.5,scale:.55});
+   }
+  }
+ }
+ if(auraRoot.children.length){
+  const topY=Math.max(1,stack.length-1);
+  auraRoot.children.forEach(c=>{
+   const f=(c.userData.frac!==undefined)?c.userData.frac:.5;
+   c.position.y=topY*f;
+   if(c.userData.kind==='ring'){c.rotation.y=blinkT*(.35+c.userData.i*.25);c.rotation.x=Math.PI/2+Math.sin(blinkT*.8+c.userData.i)*.3;}
+   if(c.userData.kind==='gold'){const s=1+Math.sin(blinkT*2.5)*.04;c.scale.set(s,s,1);c.material.opacity=.5+Math.sin(blinkT*3)*.25;}
+  });
+ }
+}
 function specialTexture(kind){
  const c=document.createElement('canvas');c.width=c.height=128;const g=c.getContext('2d');
  if(kind==='coin'){const gr=g.createLinearGradient(0,0,128,128);gr.addColorStop(0,'#fff6b0');gr.addColorStop(.5,'#ffd700');gr.addColorStop(1,'#b8860b');g.fillStyle=gr;g.fillRect(0,0,128,128);g.strokeStyle='#7a5c00';g.lineWidth=10;g.strokeRect(5,5,118,118);g.fillStyle='#7a5c00';g.font='bold 72px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText('$',64,70);}
@@ -136,9 +243,25 @@ function makeMesh(w,h,d,special){
 function applyTheme(id){themeId=id;const t=THEMES[id];scene.background=new THREE.Color(t.bg);scene.fog=t.fog?new THREE.Fog(t.fog,40,110):null;ambientLight.color.set(t.amb);ambientLight.intensity=t.ambI;dirLight.color.set(t.dir);dirLight.intensity=t.dirI;document.documentElement.style.setProperty('--accent',t.accent);saveMeta();}
 function addLayer(x,z,w,d,special){const y=boxHeight*stack.length;const mesh=makeMesh(w,boxHeight,d,special);mesh.position.set(x,y,z);towerGroup.add(mesh);stack.push({mesh:mesh,width:w,depth:d,x:x,z:z,special:special||null});}
 const partGeo=new THREE.BoxGeometry(.22,.22,.22);
-function spawnBurst(pos,colors,n,power){n=n||14;power=power||3;for(let i=0;i<n;i++){const c=colors[Math.floor(Math.random()*colors.length)];const m=new THREE.Mesh(partGeo,new THREE.MeshBasicMaterial({color:new THREE.Color(c)}));m.position.copy(pos);scene.add(m);particles.push({mesh:m,vx:(Math.random()-.5)*power,vy:Math.random()*power+1,vz:(Math.random()-.5)*power,life:50+Math.random()*30});}if(particles.length>400){const p=particles.splice(0,particles.length-400);p.forEach(o=>scene.remove(o.mesh));}}
-function addOverhang(x,z,w,d,color){const y=boxHeight*(stack.length-1);const mesh=makeMesh(w,boxHeight,d,null);mesh.material=new THREE.MeshLambertMaterial({color:color||0xffffff});mesh.position.set(x,y,z);scene.add(mesh);spawnBurst(mesh.position,THEMES[themeId].part,10);overhangs.push({mesh:mesh,speedY:0,rx:(Math.random()-.5)*.08,rz:(Math.random()-.5)*.08,vx:(Math.random()-.5)*.3,vz:(Math.random()-.5)*.3});}
-function pickSpecial(){if(frenzyActive)return null;if(score<4)return null;specialCountdown--;if(specialCountdown>0)return null;specialCountdown=5+Math.floor(Math.random()*5);const r=Math.random();if(r<.35)return 'coin';if(r<.65)return 'magnet';return 'tnt';}
+function pushParticle(pos,o){
+ const c=o.colors[Math.floor(Math.random()*o.colors.length)];
+ const m=new THREE.Mesh(partGeo,new THREE.MeshBasicMaterial({color:new THREE.Color(c)}));
+ m.position.copy(pos);
+ if(o.scale&&o.scale!==1)m.scale.setScalar(o.scale);
+ scene.add(m);
+ particles.push({mesh:m,vx:(Math.random()-.5)*(o.power||3),vy:Math.random()*(o.power||3)+(o.up||0),vz:(Math.random()-.5)*(o.power||3),life:(o.life?o.life[0]:50)+Math.random()*((o.life?o.life[1]-o.life[0]:30)),g:(o.g!==undefined?o.g:.15),spin:(o.spin!==undefined?o.spin:.1)});
+ if(particles.length>400){const p=particles.splice(0,particles.length-400);p.forEach(o2=>scene.remove(o2.mesh));}
+}
+function spawnBurst(pos,colors,n,power){n=n||14;power=power||3;for(let i=0;i<n;i++)pushParticle(pos,{colors:colors,power:power,up:1,life:[50,80]});}
+function applyCutFx(pos,baseColors){
+ const fx=equip.cut;
+ if(fx==='fireworks'){for(let i=0;i<46;i++)pushParticle(pos,{colors:['#ff2d2d','#2dff5e','#2d7bff','#ffe72d','#ff71ce','#ffffff'],power:7,up:2.5,life:[24,44],g:.05,scale:.65});}
+ else if(fx==='pixel'){for(let i=0;i<26;i++)pushParticle(pos,{colors:['#ff8ab3','#7df9ff','#ffe72d','#55ff77','#ff5f5f'],power:3.5,up:2,life:[40,60],g:.16,scale:1.5,spin:0});}
+ else if(fx==='confetti'){for(let i=0;i<40;i++)pushParticle(pos,{colors:THEMES[themeId].part.concat(['#ff2d2d','#2dff5e','#2d7bff','#ffe72d']),power:5,up:1.8,life:[45,70],g:.12,scale:.6});}
+ else spawnBurst(pos,baseColors,10);
+}
+function addOverhang(x,z,w,d,color){const y=boxHeight*(stack.length-1);const mesh=makeMesh(w,boxHeight,d,null);mesh.material=new THREE.MeshLambertMaterial({color:color||0xffffff});mesh.position.set(x,y,z);scene.add(mesh);applyCutFx(mesh.position,THEMES[themeId].part);overhangs.push({mesh:mesh,speedY:0,rx:(Math.random()-.5)*.08,rz:(Math.random()-.5)*.08,vx:(Math.random()-.5)*.3,vz:(Math.random()-.5)*.3});}
+function pickSpecial(){if(frenzyActive)return null;if(score<4)return null;specialCountdown--;if(specialCountdown>0)return null;specialCountdown=5+Math.floor(Math.random()*5);const r=Math.random();const pc=runMagnet?.525:.35;if(r<pc)return 'coin';if(r<pc+.3)return 'magnet';return 'tnt';}
 function topIsMovingTarget(){return stack.length>1&&!stack[stack.length-1].frenzyColor;}
 function frenzyColorize(l){const c=FRENZY_COLORS[Math.floor(Math.random()*FRENZY_COLORS.length)];l.frenzyColor=c;try{const m=l.mesh;if(!m.userData.frenzyOrig){m.userData.frenzyOrig=m.material.color.clone();try{m.userData.frenzyEmiOrig=m.material.emissive?m.material.emissive.getHex():0;}catch(e){m.userData.frenzyEmiOrig=0;}m.userData.frenzyHadMap=!!m.material.map;m.userData.frenzyMapOrig=m.material.map||null;}
   // i blocchi speciali (moneta/magnete/TNT) hanno una texture: va tolta durante il frenzy
@@ -151,7 +274,7 @@ function frenzyRestore(l){try{const m=l.mesh;if(m.userData.frenzyOrig){try{m.mat
 function frenzyMaybeTrigger(){if(frenzyActive||gameEnded)return;frenzySinceCheck++;if(frenzySinceCheck<FRENZY_CHECK_EVERY)return;frenzySinceCheck=0;if(Math.random()<FRENZY_CHANCE)startFrenzy();}
 function startFrenzy(){
  if(frenzyActive||gameEnded||demolishing||stack.length<=4)return;
- frenzyActive=true;frenzyTimeLeft=FRENZY_DURATION;frenzyStartLen=stack.length;frenzyHits=0;
+ frenzyActive=true;frenzyTimeLeft=frenzyDuration();frenzyStartLen=stack.length;frenzyHits=0;
  // colora solo i blocchi piazzati della torre (conserva le 2 basi, escludi il pezzo in movimento in cima)
  for(let i=2;i<stack.length-1;i++)frenzyColorize(stack[i]);
  $('frenzy-hud').classList.add('show');updateFrenzyHUD();
@@ -162,7 +285,7 @@ function startFrenzy(){
  let on=true;frenzyFlashId=setInterval(()=>{const t=$('frenzy-title');if(t)t.style.color=on?'#ffe72d':'#ffffff';on=!on;},250);
 }
 function frenzyTop(){return stack.length>2?stack[stack.length-2]:null;}
-function updateFrenzyHUD(){const f=$('frenzy-timer-fill');if(f)f.style.width=Math.max(0,frenzyTimeLeft/FRENZY_DURATION*100)+'%';const n=frenzyTop();const need=n&&n.frenzyColor?('<span style="color:'+FRENZY_CSS[n.frenzyColor]+'">● '+n.frenzyColor.toUpperCase()+'</span>'):'—';const i=$('frenzy-info');if(i)i.innerHTML='Colpisci la cima: '+need+' · Distrutti: '+frenzyHits+' · '+Math.max(0,frenzyTimeLeft).toFixed(1)+'s';}
+function updateFrenzyHUD(){const f=$('frenzy-timer-fill');if(f)f.style.width=Math.max(0,frenzyTimeLeft/frenzyDuration()*100)+'%';const n=frenzyTop();const need=n&&n.frenzyColor?('<span style="color:'+FRENZY_CSS[n.frenzyColor]+'">● '+n.frenzyColor.toUpperCase()+'</span>'):'—';const i=$('frenzy-info');if(i)i.innerHTML='Colpisci la cima: '+need+' · Distrutti: '+frenzyHits+' · '+Math.max(0,frenzyTimeLeft).toFixed(1)+'s';}
 function shootFrenzy(color){
  if(!frenzyActive||gameEnded)return;
  const top=frenzyTop();
@@ -215,11 +338,19 @@ async function handlePlace(){
  if(gameEnded){restartGame();return;}
  if(demolishing||frenzyActive)return;
  if($('shop').style.display==='flex')return;
- if(!gameStarted)gameStarted=true;
+ const firstPlace=!gameStarted;
+ if(firstPlace){gameStarted=true;
+  if(pending.life||pending.slow||pending.magnet){
+   runLife=pending.life;runMagnet=pending.magnet;runSlowLeft=pending.slow?15:0;
+   pending.life=pending.slow=pending.magnet=false;saveMeta();
+   const on=[];if(runLife)on.push('❤️');if(runSlowLeft>0)on.push('⏳');if(runMagnet)on.push('🧲');
+   banner('Power-up attivi: '+on.join(' '),1800);
+  }
+ }
  const top=stack[stack.length-1],prev=stack[stack.length-2];
  const size=currentDirection==='x'?top.width:top.depth;
  let delta=top.mesh.position[currentDirection]-prev.mesh.position[currentDirection];
- let snapTol=PERFECT_TOL;
+ let snapTol=PERFECT_TOL+upg.tol*0.05;
  if(top.special==='magnet'){if(Math.abs(delta)<size){delta*=0.25;top.mesh.position[currentDirection]=prev.mesh.position[currentDirection]+delta;snapTol=1.6;}}
  const placeErr=Math.abs(delta);
  const overlap=size-placeErr;
@@ -228,8 +359,8 @@ async function handlePlace(){
   const isPerfect=Math.abs(delta)<snapTol;
   if(isPerfect){
    top.mesh.position[currentDirection]=prev.mesh.position[currentDirection];top.x=top.mesh.position.x;top.z=top.mesh.position.z;
-   perfectStreak++;bestStreak=Math.max(bestStreak,perfectStreak);coins+=1;if(bombs<BOMB_MAX){bombProgress++;if(bombProgress>=BOMB_EVERY){bombProgress=0;bombs=Math.min(BOMB_MAX,bombs+1);banner('💣 Bomba caricata! ('+bombs+'/'+BOMB_MAX+')');flash(.6,'#ff9500');vibrate([40,40,80]);}}
-   if(perfectStreak%3===0){coins+=5;banner('PERFECT x'+perfectStreak+'! +6 monete');}else banner('PERFECT!');
+   perfectStreak++;bestStreak=Math.max(bestStreak,perfectStreak);const cm=1+upg.combo;coins+=cm;if(bombs<BOMB_MAX){bombProgress++;if(bombProgress>=BOMB_EVERY){bombProgress=0;bombs=Math.min(BOMB_MAX,bombs+1);banner('💣 Bomba caricata! ('+bombs+'/'+BOMB_MAX+')');flash(.6,'#ff9500');vibrate([40,40,80]);}}
+   if(perfectStreak%3===0){const bon=5*cm;coins+=bon;banner('PERFECT x'+perfectStreak+'! +'+(cm+bon)+' monete');}else banner(cm>1?'PERFECT +'+cm+'!':'PERFECT!');
    flash(.45);vibrate(50);
    const wp=new THREE.Vector3();top.mesh.getWorldPosition(wp);spawnBurst(wp,['#ffffff'].concat(THEMES[themeId].part),22,4);
   }else{
@@ -254,11 +385,22 @@ async function handlePlace(){
   score++;if(score>highScore){highScore=score;localStorage.setItem('stack_3d_highscore',highScore);}
   saveMeta();refreshHUD();
   currentDirection=currentDirection==='x'?'z':'x';if(placed!=='tnt')speed+=0.005;
+  if(!firstPlace&&runSlowLeft>0){runSlowLeft--;if(runSlowLeft===0)banner('⏳ Rallentatore terminato',1500);}
   // TNT come bomba/frenzy: dimensione nuovi pezzi resettata al top attuale (ref sotto), velocita' invariata (no reset, no aumento)
   currentSpecial=pickSpecial();
   if(currentSpecial)banner({tnt:'---- TNT IN ARRIVO ----',magnet:'---- MAGNETE IN ARRIVO ----',coin:'---- BLOCCO DORATO IN ARRIVO ----'}[currentSpecial],1800);
   const ref=stack[stack.length-1];addLayer(currentDirection==='x'?-20:ref.mesh.position.x,currentDirection==='z'?-20:ref.mesh.position.z,ref.width,ref.depth,currentSpecial);
   frenzyMaybeTrigger();
+ }else if(runLife){
+  runLife=false;
+  const wp=new THREE.Vector3();top.mesh.getWorldPosition(wp);
+  addOverhang(top.mesh.position.x,top.mesh.position.z,top.width,top.depth,top.mesh.material.color.clone());
+  towerGroup.remove(top.mesh);stack.pop();
+  spawnBurst(wp,['#ff2d55','#ffffff','#ff8ab3'],30,5);
+  banner('❤️ SECONDA CHANCE! Blocco perduto, la torre regge!');flash(.5,'#ff2d55');shake(.6,.5);vibrate([60,40,80]);
+  saveMeta();refreshHUD();
+  currentSpecial=pickSpecial();
+  const ref=stack[stack.length-1];addLayer(currentDirection==='x'?-20:ref.mesh.position.x,currentDirection==='z'?-20:ref.mesh.position.z,ref.width,ref.depth,currentSpecial);
  }else{endGame();}
 }
 async function detonateBomb(){
@@ -321,7 +463,7 @@ function endGame(){
 }
 function restartGame(){
  stack.forEach(l=>towerGroup.remove(l.mesh));overhangs.forEach(o=>scene.remove(o.mesh));particles.forEach(p=>scene.remove(p.mesh));projectiles.forEach(p=>scene.remove(p.mesh));
- stack=[];overhangs=[];particles=[];projectiles=[];score=0;speed=.15;gameEnded=false;gameStarted=false;currentDirection='x';bombs=0;bombProgress=0;demolishing=false;demolishSeq++;
+ stack=[];overhangs=[];particles=[];projectiles=[];score=0;speed=.15;gameEnded=false;gameStarted=false;currentDirection='x';bombs=0;bombProgress=0;demolishing=false;demolishSeq++;runLife=false;runSlowLeft=0;runMagnet=false;
  frenzyActive=false;frenzyTimeLeft=0;frenzySinceCheck=0;frenzyHits=0;clearInterval(frenzyTimerId);clearInterval(frenzyFlashId);frenzyTimerId=frenzyFlashId=null;
  currentSpecial=null;specialCountdown=5;perfectStreak=0;
  shakeTime=shakeMag=0;
@@ -330,11 +472,59 @@ function restartGame(){
  addLayer(0,0,10,10,null);addLayer(0,0,10,10,null);
  camera.position.set(20,20,20);camera.lookAt(0,0,0);refreshHUD();
 }
+function buildEquipRow(rowId,data,key,label){
+ const row=$(rowId);if(!row)return;row.innerHTML='';
+ Object.keys(data).forEach(id=>{const it=data[id];
+  const ownedNow=id==='none'||owned.indexOf(key+':'+id)>=0;
+  const d=document.createElement('div');d.className='shop-item'+(equip[key]===id?' active':'');
+  d.innerHTML='<b>'+it.name+'</b><br><small>'+(it.price===0?'Gratis':'monete '+it.price)+'</small><br>';
+  const b=document.createElement('button');
+  b.textContent=ownedNow?(equip[key]===id?'Attivo':'Usa'):'Compra';
+  b.onclick=()=>{if(!ownedNow){if(coins<it.price){alert('Monete insufficienti!');return;}coins-=it.price;owned.push(key+':'+id);}
+   equip[key]=id;saveMeta();refreshHUD();buildShop();banner(label+': '+it.name);
+   if(key==='frame')applyScoreFrame();if(key==='aura')buildAura();};
+  d.appendChild(b);row.appendChild(d);
+ });
+}
+function buildConsumables(){
+ const row=$('consumables');if(!row)return;row.innerHTML='';
+ const locked=gameStarted&&!gameEnded;
+ Object.keys(CONSUMABLES).forEach(k=>{const c=CONSUMABLES[k];
+  const d=document.createElement('div');d.className='shop-item'+(pending[k]?' active':'');
+  d.innerHTML='<b>'+c.name+'</b><br><small>monete '+c.price+'</small><br><small style="opacity:.8">'+c.desc+'</small><br><small>In scorta: '+inv[k]+'</small>';
+  const wrap=document.createElement('div');wrap.className='btns';
+  const bc=document.createElement('button');bc.textContent='Compra';
+  bc.onclick=()=>{if(coins<c.price){alert('Monete insufficienti!');return;}coins-=c.price;inv[k]++;saveMeta();refreshHUD();buildShop();};
+  const ba=document.createElement('button');
+  if(pending[k]){ba.textContent='✓ Attivo';ba.disabled=true;}
+  else{ba.textContent=inv[k]>0?'Attiva':'—';ba.disabled=!(inv[k]>0)||locked;
+   if(locked&&inv[k]>0)ba.title='Disponibile solo prima del primo blocco';
+   ba.onclick=()=>{if(inv[k]<=0||locked||pending[k])return;inv[k]--;pending[k]=true;saveMeta();refreshHUD();buildShop();banner(c.name+' in scorta per la prossima partita!');};}
+  wrap.appendChild(bc);wrap.appendChild(ba);d.appendChild(wrap);row.appendChild(d);
+ });
+}
+function buildUpgrades(){
+ const row=$('upgrades');if(!row)return;row.innerHTML='';
+ Object.keys(UPGRADES).forEach(k=>{const u=UPGRADES[k];const lv=upg[k]||0;
+  const d=document.createElement('div');d.className='shop-item'+(lv>0?' active':'');
+  d.innerHTML='<b>'+u.name+'</b><br><small>'+u.desc+'</small><br><small style="color:#ffd966">'+'●'.repeat(lv)+'○'.repeat(u.max-lv)+'</small><br><small>Livello '+lv+'/'+u.max+' · '+u.price+' monete</small>';
+  const b=document.createElement('button');
+  if(lv>=u.max){b.textContent='MAX';b.disabled=true;}
+  else{b.textContent='Migliora';b.onclick=()=>{if(coins<u.price){alert('Monete insufficienti!');return;}coins-=u.price;upg[k]=lv+1;saveMeta();refreshHUD();buildShop();banner(u.name+' → livello '+upg[k]+'!');};}
+  d.appendChild(b);row.appendChild(d);
+ });
+}
 function buildShop(){
  const tw=$('themes');tw.innerHTML='';
  Object.keys(THEMES).forEach(id=>{const t=THEMES[id];const d=document.createElement('div');d.className='shop-item'+(id===themeId?' active':'');d.innerHTML='<b>'+t.name+'</b><br><small>'+(t.price===0?'Gratis':'monete '+t.price)+'</small><br>';const b=document.createElement('button');b.textContent=owned.indexOf(id)>=0?(id===themeId?'Attivo':'Usa'):'Compra';b.onclick=()=>{if(owned.indexOf(id)<0){if(coins<t.price){alert('Monete insufficienti! Raccogli monete oro e perfect.');return;}coins-=t.price;owned.push(id);}applyTheme(id);refreshHUD();buildShop();};d.appendChild(b);tw.appendChild(d);});
  const sw=$('shapes');sw.innerHTML='';
  Object.keys(SHAPES).forEach(id=>{const s=SHAPES[id];const d=document.createElement('div');d.className='shop-item'+(id===shapeId?' active':'');d.innerHTML='<b>'+s.name+'</b><br><small>'+(s.price===0?'Gratis':'monete '+s.price)+'</small><br>';const b=document.createElement('button');b.textContent=owned.indexOf(id)>=0?(id===shapeId?'Attivo':'Usa'):'Compra';b.onclick=()=>{if(owned.indexOf(id)<0){if(coins<s.price){alert('Monete insufficienti!');return;}coins-=s.price;owned.push(id);}shapeId=id;saveMeta();refreshHUD();buildShop();banner('Forma: '+s.name);};d.appendChild(b);sw.appendChild(d);});
+ buildEquipRow('trails',TRAILS,'trail','Scia');
+ buildEquipRow('cutefx',CUTEFX,'cut','Effetto taglio');
+ buildEquipRow('auras',AURAS,'aura','Aura');
+ buildEquipRow('frames',FRAMES,'frame','Cornice');
+ buildConsumables();
+ buildUpgrades();
 }
 function init(){
  scene=new THREE.Scene();
@@ -346,6 +536,7 @@ function init(){
  towerGroup=new THREE.Group();scene.add(towerGroup);
  renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));document.body.appendChild(renderer.domElement);
  applyTheme(themeId);
+ applyScoreFrame();buildAura();
  addLayer(0,0,10,10,null);addLayer(0,0,10,10,null);refreshHUD();buildShop();
  addEventListener('resize',()=>{const a=innerWidth/innerHeight,dd=20;camera.left=-dd*a;camera.right=dd*a;camera.top=dd;camera.bottom=-dd;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
  addEventListener('pointerdown',e=>{const inMenu=!!e.target.closest('#menu');if(!inMenu)$('menu').classList.remove('open');if(inMenu||e.target.closest('button')||e.target.closest('#shop')||e.target.closest('#gameover'))return;handlePlace();});
@@ -367,16 +558,18 @@ function animation(){
   if(top.special==='tnt'){top.mesh.material.emissive.setHex(Math.sin(blinkT*18)>0?0xff2222:0x440000);const puls=1+Math.sin(blinkT*18)*0.04;top.mesh.scale.y=boxHeight*puls;}
   if(top.special==='coin'){top.mesh.rotation.y+=0.06;try{top.mesh.material.emissive.setHex(Math.sin(blinkT*9)>0?0xcc9900:0x554400);}catch(e){}}
   if(top.special==='magnet'){try{top.mesh.material.emissive.setHex(Math.sin(blinkT*10)>0?0x00aaff:0x003355);}catch(e){}}
-  if(!frenzyActive&&!demolishing){top.mesh.position[currentDirection]+=speed;
-   if(top.mesh.position[currentDirection]>20)top.mesh.position[currentDirection]=-20;}
+  if(!frenzyActive&&!demolishing){top.mesh.position[currentDirection]+=speed*(runSlowLeft>0?0.8:1);
+   if(top.mesh.position[currentDirection]>20)top.mesh.position[currentDirection]=-20;
+   if(equip.trail!=='none'){trailTick++;const st=TRAILS[equip.trail];if(st&&st.every&&trailTick%st.every===0){const wp=new THREE.Vector3();top.mesh.getWorldPosition(wp);wp.y-=boxHeight*.45;pushParticle(wp,{colors:st.colors,power:st.power,up:st.up,life:st.life,g:st.g,scale:st.scale});}}}
  }
  // sfere frenzy: cadono dall'alto verso la cima, all'impatto verifica il match colore
  for(let i=projectiles.length-1;i>=0;i--){const pr=projectiles[i];pr.t+=dt*2.2;if(pr.t>=1){scene.remove(pr.mesh);projectiles.splice(i,1);const cur=frenzyTop();if(frenzyActive&&cur)frenzyHit(cur,pr.color);}else{pr.mesh.position.lerpVectors(pr.from,pr.target,pr.t);pr.mesh.scale.setScalar(1+Math.sin(pr.t*Math.PI)*.3);}}
  // pulse dei blocchi frenzy
  if(frenzyActive){const pu=1+Math.sin(blinkT*10)*.03;for(let i=2;i<stack.length-1;i++){const l=stack[i];if(l&&l.frenzyColor){try{l.mesh.scale.y=boxHeight*pu;}catch(e){}}}}
+ updateAura();
  overhangs.forEach(o=>{o.speedY-=0.05;o.mesh.position.y+=o.speedY;o.mesh.position.x+=o.vx;o.mesh.position.z+=o.vz;o.mesh.rotation.x+=o.rx;o.mesh.rotation.z+=o.rz;});
  overhangs=overhangs.filter(o=>{if(o.mesh.position.y<-30){scene.remove(o.mesh);return false;}return true;});
- particles.forEach(p=>{p.life--;p.mesh.position.x+=p.vx*.08;p.mesh.position.y+=p.vy*.08;p.mesh.position.z+=p.vz*.08;p.vy-=.15;p.mesh.rotation.x+=.1;p.mesh.scale.multiplyScalar(.985);});
+ particles.forEach(p=>{p.life--;p.mesh.position.x+=p.vx*.08;p.mesh.position.y+=p.vy*.08;p.mesh.position.z+=p.vz*.08;p.vy-=(p.g!==undefined?p.g:.15);p.mesh.rotation.x+=(p.spin!==undefined?p.spin:.1);p.mesh.scale.multiplyScalar(.985);});
  particles=particles.filter(p=>{if(p.life<=0){scene.remove(p.mesh);return false;}return true;});
  const targetY=20+(stack.length-2)*boxHeight;
  if(camera.position.y<targetY)camera.position.y+=(targetY-camera.position.y)*.08;
