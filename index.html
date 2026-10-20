@@ -38,6 +38,7 @@ canvas{display:block}
 #frenzy-btns,#blast-btns{display:flex;gap:10px}
 .frenzy-btn{width:56px;height:56px;border-radius:50%;border:3px solid rgba(255,255,255,.85);cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.5);font-size:1.3rem}
 .frenzy-btn:active{transform:scale(.92)}
+.frenzy-btn:disabled,.blast-btn:disabled{opacity:.4;filter:grayscale(.7);cursor:default;transform:none}
 
 #menu{position:fixed;top:12px;right:12px;z-index:20;display:flex;flex-direction:column;align-items:flex-end;gap:8px}
 #menu-btn{width:44px;height:44px;padding:0;font-size:1.3rem;line-height:1;border-radius:14px;background:rgba(0,0,0,.6)}
@@ -141,7 +142,7 @@ try{frenzyUnlocked=(localStorage.getItem('stack3d_frenzy_unlocked')==='1')||high
 // Durata totale 8s = 4 ondate x 2s: a ogni ondata la torre si ricolora con nuova combinazione casuale.
 // I 4 tasti fanno esplodere TUTTI i blocchi di quel colore (non solo la cima).
 const BLAST_MIN_SCORE=75,BLAST_DURATION=8,BLAST_WAVES=4,BLAST_WAVE_TIME=2,BLAST_CHECK_EVERY=15,BLAST_CHANCE=0.10;
-let blastActive=false,blastTimeLeft=0,blastTimerId=null,blastWaveId=null,blastFlashId=null,blastSinceCheck=0,blastWave=0,blastHits=0;
+let blastActive=false,blastTimeLeft=0,blastTimerId=null,blastWaveId=null,blastFlashId=null,blastSinceCheck=0,blastWave=0,blastHits=0,blastUsed=false;
 let blastUnlocked=false;
 try{blastUnlocked=(localStorage.getItem('stack3d_blast_unlocked')==='1')||highScore>=BLAST_MIN_SCORE;}catch(e){}
 let projectiles=[];
@@ -460,7 +461,8 @@ function blastRepaintWave(){
 }
 function startBlast(){
  if(blastActive||gameEnded||demolishing||frenzyActive||stack.length<=4||!blastUnlocked)return;
- blastActive=true;blastTimeLeft=BLAST_DURATION;blastWave=1;blastHits=0;
+ blastActive=true;blastTimeLeft=BLAST_DURATION;blastWave=1;blastHits=0;blastUsed=false;
+ setBlastButtonsDisabled(false);
  for(let i=2;i<stack.length-1;i++)frenzyColorize(stack[i]);
  $('blast-hud').classList.add('show');updateBlastHUD();
  banner('💥 COLOR BLAST! ONDATA 1/4');flash(.6,'#ffe72d');shake(.6,.5);vibrate([60,40,60,40,80]);
@@ -475,6 +477,9 @@ function startBlast(){
  },BLAST_WAVE_TIME*1000);
  blastFlashId=setInterval(()=>{const h=$('blast-hud');if(h)h.style.borderColor=h.style.borderColor==='gold'?'rgba(255,255,255,.3)':'gold';},300);
 }
+function setBlastButtonsDisabled(dis){
+ document.querySelectorAll('#blast-btns button').forEach(b=>{b.disabled=!!dis;});
+}
 function updateBlastHUD(){
  const f=$('blast-timer-fill');if(f)f.style.width=Math.max(0,blastTimeLeft/BLAST_DURATION*100)+'%';
  const cnt={red:0,green:0,blue:0,yellow:0};
@@ -483,7 +488,8 @@ function updateBlastHUD(){
  if(i)i.innerHTML='Ondata '+Math.min(blastWave,BLAST_WAVES)+'/'+BLAST_WAVES+' · 🔴'+cnt.red+' 🟢'+cnt.green+' 🔵'+cnt.blue+' 🟡'+cnt.yellow+' · Distrutti: '+blastHits+' · '+Math.max(0,blastTimeLeft).toFixed(1)+'s';
 }
 function explodeBlast(color){
- if(!blastActive||gameEnded||demolishing)return;
+ if(!blastActive||gameEnded||demolishing||blastUsed)return;
+ blastUsed=true;setBlastButtonsDisabled(true);
  const idxs=[];
  for(let i=stack.length-2;i>=2;i--){if(stack[i].frenzyColor===color)idxs.push(i);}
  if(!idxs.length){
@@ -508,7 +514,8 @@ function explodeBlast(color){
 }
 function endBlast(){
  if(!blastActive)return;
- blastActive=false;
+ blastActive=false;blastUsed=false;
+ setBlastButtonsDisabled(false);
  clearInterval(blastTimerId);clearInterval(blastWaveId);clearInterval(blastFlashId);
  blastTimerId=blastWaveId=blastFlashId=null;
  const h=$('blast-hud');if(h){h.classList.remove('show');h.style.borderColor='rgba(255,255,255,.3)';}
@@ -647,7 +654,7 @@ async function detonateTNT(){
 function endGame(){
  if(gameEnded)return;gameEnded=true;vibrate(80);shake(1,.7);flash(.5,'#ff0044');
  if(frenzyActive){frenzyActive=false;clearInterval(frenzyTimerId);clearInterval(frenzyFlashId);frenzyTimerId=frenzyFlashId=null;projectiles.forEach(p=>scene.remove(p.mesh));projectiles=[];$('frenzy-hud').classList.remove('show');for(let i=0;i<stack.length;i++){if(stack[i].frenzyColor)frenzyRestore(stack[i]);}}
-  if(blastActive){blastActive=false;clearInterval(blastTimerId);clearInterval(blastWaveId);clearInterval(blastFlashId);blastTimerId=blastWaveId=blastFlashId=null;$('blast-hud').classList.remove('show');for(let i=0;i<stack.length;i++){if(stack[i].frenzyColor)frenzyRestore(stack[i]);}}
+  if(blastActive){blastActive=false;blastUsed=false;clearInterval(blastTimerId);clearInterval(blastWaveId);clearInterval(blastFlashId);blastTimerId=blastWaveId=blastFlashId=null;$('blast-hud').classList.remove('show');for(let i=0;i<stack.length;i++){if(stack[i].frenzyColor)frenzyRestore(stack[i]);}setBlastButtonsDisabled(false);}
  const top=stack[stack.length-1];
  if(top){addOverhang(top.mesh.position.x,top.mesh.position.z,top.width,top.depth,top.mesh.material.color.clone());towerGroup.remove(top.mesh);}
  $('go-reason').textContent='Hai mancato il blocco!';
@@ -658,7 +665,7 @@ function restartGame(){
  stack.forEach(l=>towerGroup.remove(l.mesh));overhangs.forEach(o=>scene.remove(o.mesh));particles.forEach(p=>scene.remove(p.mesh));projectiles.forEach(p=>scene.remove(p.mesh));
  stack=[];overhangs=[];particles=[];projectiles=[];score=0;speed=.15;gameEnded=false;gameStarted=false;currentDirection='x';bombs=0;bombProgress=0;demolishing=false;demolishSeq++;runLife=false;runSlowLeft=0;runMagnet=false;
  frenzyActive=false;frenzyTimeLeft=0;frenzySinceCheck=0;frenzyHits=0;clearInterval(frenzyTimerId);clearInterval(frenzyFlashId);frenzyTimerId=frenzyFlashId=null;
-  blastActive=false;blastTimeLeft=0;blastWave=0;blastSinceCheck=0;blastHits=0;clearInterval(blastTimerId);clearInterval(blastWaveId);clearInterval(blastFlashId);blastTimerId=blastWaveId=blastFlashId=null;
+  blastActive=false;blastTimeLeft=0;blastWave=0;blastSinceCheck=0;blastHits=0;blastUsed=false;clearInterval(blastTimerId);clearInterval(blastWaveId);clearInterval(blastFlashId);blastTimerId=blastWaveId=blastFlashId=null;setBlastButtonsDisabled(false);
  currentSpecial=null;specialCountdown=5;perfectStreak=0;
  shakeTime=shakeMag=0;
  $('gameover').style.display='none';$('frenzy-hud').classList.remove('show');$('blast-hud').classList.remove('show');$('special-banner').textContent='';$('score').textContent='0';
