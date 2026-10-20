@@ -59,7 +59,12 @@ canvas{display:block}
 @keyframes framePulse{50%{box-shadow:0 0 30px var(--accent)}}
 @keyframes frameSpin{to{background-position:0 0,400% 0}}
 #badge{font-size:.85rem;font-weight:700;letter-spacing:.03em;min-height:1.2em;color:#ffd966;text-shadow:0 2px 6px #000}
-#shop h3{margin:18px 0 2px;font-size:.95rem;letter-spacing:.02em}
+.shop-head{position:sticky;top:-20px;margin:-20px -20px 6px;padding:16px 20px 10px;background:#16162a;border-bottom:1px solid rgba(255,255,255,.12);z-index:2}
+#shop-tabs{display:flex;gap:6px;margin-top:10px}
+.stab{flex:1;padding:8px 4px;font-family:inherit;font-size:.83rem;font-weight:700;color:#fff;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:10px;cursor:pointer;transition:box-shadow .15s,border-color .15s,color .15s}
+.stab.active{border-color:var(--accent);color:var(--accent);box-shadow:0 0 10px var(--accent)}
+.mini-h{font-size:.75rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;opacity:.65;margin:14px 0 -4px}
+.shop-foot{position:sticky;bottom:-20px;margin:12px -20px -20px;padding:10px 20px 16px;background:#16162a;border-top:1px solid rgba(255,255,255,.12)}
 #shop .hint{font-size:.75rem;opacity:.72;margin:0 0 4px}
 @media(max-width:600px){#score{font-size:3rem}.pill{font-size:.72rem;padding:2px 8px}}
 </style>
@@ -77,7 +82,26 @@ canvas{display:block}
 <div id="menu"><button class="btn" id="menu-btn" aria-label="Menu">&#9776;</button><div id="menu-popup"><button class="btn" id="restart-btn">Restart</button><button class="btn" id="shop-btn">Shop</button></div></div>
 <div id="flash"></div>
 <div id="gameover"><div class="card"><h1>GAME OVER</h1><p id="go-reason"></p><p id="go-stats"></p><button class="btn" id="go-retry">Gioca ancora</button> <button class="btn" id="go-shop">Shop</button></div></div>
-<div id="shop"><div class="card"><h2 style="margin:0">Negozio <span id="shop-coins" style="float:right">0</span></h2><p style="opacity:.8">Temi, forme, scie, effetti, auree e cornici. Consumabili solo prima del primo blocco. Titoli (badge) si sbloccano con il punteggio.</p><h3>Temi grafici</h3><div class="shop-row" id="themes"></div><h3>Forme blocchi</h3><div class="shop-row" id="shapes"></div><h3>Scie dei blocchi</h3><div class="shop-row" id="trails"></div><h3>Effetti di distruzione</h3><div class="shop-row" id="cutefx"></div><h3>Auree della torre</h3><div class="shop-row" id="auras"></div><h3>Cornici del punteggio</h3><div class="shop-row" id="frames"></div><h3>Potenziamenti consumabili</h3><p class="hint">Attivabili solo prima di posizionare il primo blocco. All'attivazione vanno in scorta per la prossima partita.</p><div class="shop-row" id="consumables"></div><h3>Miglioramenti permanenti</h3><p class="hint">Si acquistano per livelli e restano per sempre.</p><div class="shop-row" id="upgrades"></div><button class="btn" id="shop-close" style="width:100%;margin-top:14px">Chiudi</button></div></div>
+<div id="shop"><div class="card">
+ <div class="shop-head"><h2 style="margin:0">Negozio <span id="shop-coins" style="float:right">0</span></h2><div id="shop-tabs"><button class="stab active" data-tab="estetica">🎨 Estetica</button><button class="stab" data-tab="consumabili">⚡ Consumabili</button><button class="stab" data-tab="miglioramenti">📈 Miglioramenti</button></div></div>
+ <div class="stab-panel" data-panel="estetica">
+  <div class="mini-h">🎨 Temi grafici</div><div class="shop-row" id="themes"></div>
+  <div class="mini-h">🧱 Forme blocchi</div><div class="shop-row" id="shapes"></div>
+  <div class="mini-h">✨ Scie dei blocchi</div><div class="shop-row" id="trails"></div>
+  <div class="mini-h">💥 Effetti di distruzione</div><div class="shop-row" id="cutefx"></div>
+  <div class="mini-h">🌟 Auree della torre</div><div class="shop-row" id="auras"></div>
+  <div class="mini-h">🖼️ Cornici del punteggio</div><div class="shop-row" id="frames"></div>
+ </div>
+ <div class="stab-panel" data-panel="consumabili" style="display:none">
+  <p class="hint">Prima compri, poi premi <b>Attiva</b>: va in scorta e si consuma alla prossima partita. Attivabili solo prima di posizionare il primo blocco.</p>
+  <div class="shop-row" id="consumables"></div>
+ </div>
+ <div class="stab-panel" data-panel="miglioramenti" style="display:none">
+  <p class="hint">Miglioramenti permanenti a livelli: una volta comprati restano per sempre e si applicano a ogni partita.</p>
+  <div class="shop-row" id="upgrades"></div>
+ </div>
+ <div class="shop-foot"><button class="btn" id="shop-close" style="width:100%">Chiudi</button></div>
+</div></div>
 <script>
 /* STACK 3D punti 3..7 GDD */
 let scene,camera,renderer,towerGroup,ambientLight,dirLight;
@@ -497,7 +521,7 @@ function buildConsumables(){
   bc.onclick=()=>{if(coins<c.price){alert('Monete insufficienti!');return;}coins-=c.price;inv[k]++;saveMeta();refreshHUD();buildShop();};
   const ba=document.createElement('button');
   if(pending[k]){ba.textContent='✓ Attivo';ba.disabled=true;}
-  else{ba.textContent=inv[k]>0?'Attiva':'—';ba.disabled=!(inv[k]>0)||locked;
+  else{ba.textContent='Attiva';ba.disabled=!(inv[k]>0)||locked;
    if(locked&&inv[k]>0)ba.title='Disponibile solo prima del primo blocco';
    ba.onclick=()=>{if(inv[k]<=0||locked||pending[k])return;inv[k]--;pending[k]=true;saveMeta();refreshHUD();buildShop();banner(c.name+' in scorta per la prossima partita!');};}
   wrap.appendChild(bc);wrap.appendChild(ba);d.appendChild(wrap);row.appendChild(d);
@@ -547,6 +571,10 @@ function init(){
  $('restart-btn').onclick=e=>{e.stopPropagation();$('menu').classList.remove('open');restartGame();};
  $('go-retry').onclick=e=>{e.stopPropagation();restartGame();};
  $('menu-btn').onclick=e=>{e.stopPropagation();$('menu').classList.toggle('open');};
+ document.querySelectorAll('.stab').forEach(t=>{t.onclick=e=>{e.stopPropagation();
+  document.querySelectorAll('.stab').forEach(x=>x.classList.toggle('active',x===t));
+  document.querySelectorAll('.stab-panel').forEach(p=>{p.style.display=(p.dataset.panel===t.dataset.tab)?'':'none';});
+ };});
  $('bomb-btn').onclick=e=>{e.stopPropagation();detonateBomb();};
  document.querySelectorAll('.frenzy-btn').forEach(b=>{b.onclick=e=>{e.stopPropagation();shootFrenzy(b.dataset.color);};});
  renderer.setAnimationLoop(animation);
