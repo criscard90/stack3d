@@ -98,7 +98,7 @@ canvas{display:block}
 <div id="power-hud"></div>
 <div id="frenzy-hud"><div id="frenzy-title">🎨 FRENZY</div><div id="frenzy-timer"><div id="frenzy-timer-fill"></div></div><div id="frenzy-btns"><button class="frenzy-btn" data-color="red" style="background:#ff2d2d" aria-label="Spara rosso">🔴</button><button class="frenzy-btn" data-color="green" style="background:#2dff5e" aria-label="Spara verde">🟢</button><button class="frenzy-btn" data-color="blue" style="background:#2d7bff" aria-label="Spara blu">🔵</button><button class="frenzy-btn" data-color="yellow" style="background:#ffe72d" aria-label="Spara giallo">🟡</button></div><div id="frenzy-info" style="font-size:.8rem;font-weight:700;opacity:.9"></div></div>
 <div id="blast-hud"><div id="blast-title">💥 COLOR BLAST</div><div id="blast-timer"><div id="blast-timer-fill"></div></div><div id="blast-btns"><button class="frenzy-btn blast-btn" data-color="red" style="background:#ff2d2d" aria-label="Esplodi rosso">🔴</button><button class="frenzy-btn blast-btn" data-color="green" style="background:#2dff5e" aria-label="Esplodi verde">🟢</button><button class="frenzy-btn blast-btn" data-color="blue" style="background:#2d7bff" aria-label="Esplodi blu">🔵</button><button class="frenzy-btn blast-btn" data-color="yellow" style="background:#ffe72d" aria-label="Esplodi giallo">🟡</button></div><div id="blast-info" style="font-size:.8rem;font-weight:700;opacity:.9"></div></div>
-<div id="menu"><button class="btn" id="menu-btn" aria-label="Menu">&#9776;</button><div id="menu-popup"><button class="btn" id="restart-btn">Restart</button><button class="btn" id="shop-btn">Shop</button><button class="btn" id="sound-btn" title="Attiva/disattiva audio (M)">🔊 Audio: ON</button></div></div>
+<div id="menu"><button class="btn" id="menu-btn" aria-label="Menu">&#9776;</button><div id="menu-popup"><button class="btn" id="restart-btn">Restart</button><button class="btn" id="shop-btn">Shop</button><button class="btn" id="test-btn" title="Prova audio">🔔 Test audio</button><button class="btn" id="sound-btn" title="Attiva/disattiva audio (M)">🔊 Audio: ON</button></div></div>
 <div id="flash"></div>
 <div id="gameover"><div class="card"><h1>GAME OVER</h1><p id="go-reason"></p><p id="go-stats"></p><button class="btn" id="go-retry">Gioca ancora</button> <button class="btn" id="go-shop">Shop</button></div></div>
 <div id="shop"><div class="card">
@@ -124,22 +124,30 @@ canvas{display:block}
 <script>
 /* STACK 3D punti 3..7 GDD */
 /* ===== COMPARTO SONORO: ZzFX Micro inline (MIT Frank Force) + SFX/musica ===== */
-let zzfxV=.3,zzfxX=null,zzfxMaster=null;
-function zzfxInit(){if(zzfxX)return true;try{const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return false;zzfxX=new AC();zzfxMaster=zzfxX.createGain();zzfxMaster.gain.value=soundOn?1:0;zzfxMaster.connect(zzfxX.destination);return true;}catch(e){return false;}}
+let zzfxV=.8,zzfxX=null,zzfxMaster=null,audioUnlocked=false;
+/* stato audio persistente: dichiarato PRIMA di zzfxInit per evitare TDZ */
+let soundOn=true,musicOn=true;
+try{if(localStorage.getItem('stack3d_sound')==='0')soundOn=false;}catch(e){}
+try{if(localStorage.getItem('stack3d_music')==='0')musicOn=false;}catch(e){}
+function zzfxSyncGain(){try{if(zzfxMaster)zzfxMaster.gain.value=soundOn?1:0;}catch(e){}}
+function zzfxInit(){if(zzfxX){try{zzfxSyncGain();}catch(e){}return true;}try{const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return false;zzfxX=new AC();zzfxMaster=zzfxX.createGain();zzfxMaster.gain.value=soundOn?1:0;zzfxMaster.connect(zzfxX.destination);return true;}catch(e){return false;}}
+function audioUnlock(){audioUnlocked=true;if(!zzfxInit())return false;zzfxSyncGain();try{if(zzfxX.state==='suspended'){const r=zzfxX.resume();if(r&&r.then)r.then(()=>{try{zzfxSyncGain();}catch(e){}}).catch(()=>{});}}catch(e){}try{musicStart();}catch(e){}try{if(typeof refreshSoundBtn!=='undefined')refreshSoundBtn();}catch(e){}return true;}
 function zzfxP(p){
- if(typeof soundOn!=='undefined'&&!soundOn)return null;
+ if(!soundOn)return null;
+ if(!audioUnlocked)return null;
  if(!zzfxInit())return null;
- try{if(zzfxX.state==='suspended')zzfxX.resume();}catch(e){}
+ try{if(zzfxX.state==='suspended'){const r=zzfxX.resume();if(r&&r.catch)r.catch(()=>{});}}catch(e){}
+ try{zzfxSyncGain();}catch(e){}
  try{
- const volume=p[0]!==undefined?p[0]:1,randomness=p[1]!==undefined?p[1]:.05,frequency=p[2]!==undefined?p[2]:220;
+ let volume=p[0]!==undefined?p[0]:1,randomness=p[1]!==undefined?p[1]:.05,frequency=p[2]!==undefined?p[2]:220;
  let attack=p[3]||0,sustain=p[4]||0,release=p[5]!==undefined?p[5]:.1;
- const shape=p[6]||0,shapeCurve=p[7]!==undefined?p[7]:1;
+ let shape=p[6]||0,shapeCurve=p[7]!==undefined?p[7]:1;
  let slide=p[8]||0,deltaSlide=p[9]||0;
- const pitchJump=p[10]||0;let pitchJumpTime=p[11]||0;
- let repeatTime=p[12]||0;const noise=p[13]||0,modulation=p[14]||0,bitCrush=p[15]||0;
- let delay=p[16]||0;const sustainVolume=p[17]!==undefined?p[17]:1;
- let decay=p[18]||0;const tremolo=p[19]||0,filter=p[20]||0;
- const sampleRate=44100;let PI2=Math.PI*2,abs=Math.abs,sign=v=>v<0?-1:1;
+ let pitchJump=p[10]||0;let pitchJumpTime=p[11]||0;
+ let repeatTime=p[12]||0;let noise=p[13]||0,modulation=p[14]||0,bitCrush=p[15]||0;
+ let delay=p[16]||0;let sustainVolume=p[17]!==undefined?p[17]:1;
+ let decay=p[18]||0;let tremolo=p[19]||0,filter=p[20]||0;
+ const sampleRate=(zzfxX&&zzfxX.sampleRate)?zzfxX.sampleRate:44100;let PI2=Math.PI*2,abs=Math.abs,sign=v=>v<0?-1:1;
  const startSlide=slide*500*PI2/sampleRate/sampleRate;
  const startFrequency=frequency*(1+randomness*2*Math.random()-randomness)*PI2/sampleRate;
  let modOffset=0,repeat=0,crush=0,jump=1,length;const b=[];let t=0,i=0,s=0,f;
@@ -149,10 +157,11 @@ function zzfxP(p){
  let x2=0,x1=0,y2=0,y1=0;
  attack=attack*sampleRate||9;decay*=sampleRate;sustain*=sampleRate;release*=sampleRate;delay*=sampleRate;
  deltaSlide*=500*PI2/Math.pow(sampleRate,3);const mod2=modulation*PI2/sampleRate;
- const pj=pitchJump*PI2/sampleRate;pitchJumpTime*=sampleRate;repeatTime=repeatTime*sampleRate|0;
- const vol=volume*zzfxV;
+ let pj=pitchJump*PI2/sampleRate;pitchJumpTime*=sampleRate;repeatTime=repeatTime*sampleRate|0;
+ let vol=volume*zzfxV;
+ let crushEvery=(bitCrush>0)?(bitCrush*100|0):0;
  for(length=attack+decay+sustain+release+delay|0;i<length;b[i++]=s*vol){
-  if(!(++crush%(bitCrush*100|0))){
+  if(!crushEvery||!(++crush%crushEvery)){
    if(shape===0)s=Math.sin(t);
    else if(shape===1)s=1-4*abs(Math.round(t/PI2)-t/PI2);
    else if(shape===2)s=1-(2*t/PI2%2+2)%2;
@@ -180,13 +189,10 @@ function zzfxP(p){
  source.buffer=buffer;source.connect(zzfxMaster);source.start();return source;
  }catch(e){return null;}
 }
-/* --- stato audio persistente + SFX --- */
-let soundOn=true,musicOn=true;
-try{if(localStorage.getItem('stack3d_sound')==='0')soundOn=false;}catch(e){}
-try{if(localStorage.getItem('stack3d_music')==='0')musicOn=false;}catch(e){}
+/* --- stato audio persistente + SFX (dichiarato sopra per evitare TDZ) --- */
 function refreshSoundBtn(){const b=document.getElementById('sound-btn');if(b)b.textContent=soundOn?'🔊 Audio: ON':'🔇 Audio: OFF';const t=document.getElementById('sound-toggle');if(t){t.textContent=soundOn?'🔊 SFX: ON':'🔇 SFX: OFF';t.classList.toggle('off',!soundOn);}const m=document.getElementById('music-toggle');if(m){m.textContent=musicOn?'🎵 Musica: ON':'🎵 Musica: OFF';m.classList.toggle('off',!musicOn);}}
-function toggleSound(){soundOn=!soundOn;try{localStorage.setItem('stack3d_sound',soundOn?'1':'0');}catch(e){}try{if(zzfxMaster)zzfxMaster.gain.value=soundOn?1:0;}catch(e){}refreshSoundBtn();if(soundOn)sfxUI();}
-function toggleMusic(){musicOn=!musicOn;try{localStorage.setItem('stack3d_music',musicOn?'1':'0');}catch(e){}refreshSoundBtn();if(!musicOn)musicStop();}
+function toggleSound(){soundOn=!soundOn;try{localStorage.setItem('stack3d_sound',soundOn?'1':'0');}catch(e){}try{audioUnlock();}catch(e){}zzfxSyncGain();refreshSoundBtn();if(soundOn){try{sfxUI();}catch(e){}}}
+function toggleMusic(){musicOn=!musicOn;try{localStorage.setItem('stack3d_music',musicOn?'1':'0');}catch(e){}refreshSoundBtn();if(!musicOn)musicStop();else{try{audioUnlock();}catch(e){}musicStart();}}
 function sfxPlace(){zzfxP([.5,.02,300,.005,.05,.12,1,.7,.15]);}
 function sfxPerfect(st){const b=520+Math.min(st||0,12)*45;zzfxP([.55,.01,b,.005,.08,.14,1,.8,.25]);setTimeout(()=>zzfxP([.5,.01,b*1.5,.005,.09,.16,1,.8,.2]),70);}
 function sfxBombCharge(){[440,554,659].forEach((f,i)=>setTimeout(()=>zzfxP([.5,.01,f,.005,.1,.15,1,.7,0]),i*70));}
@@ -211,6 +217,10 @@ function sfxFrenzyStart(){[523,659,784,1047].forEach((f,i)=>setTimeout(()=>zzfxP
 function sfxBlastStart(){[392,523,659,784,1047].forEach((f,i)=>setTimeout(()=>zzfxP([.5,.02,f,.005,.1,.16,4,1,.12]),i*70));}
 function sfxWave(){zzfxP([.5,.03,520,.005,.08,.14,2,1,.4]);}
 function sfxTick(){zzfxP([.3,.02,1000,.003,.03,.05,1,1,0]);}
+function audioDiag(){try{return 'ctx:'+(zzfxX?zzfxX.state:'null')+', sound:'+soundOn+', music:'+musicOn+', sr:'+(zzfxX&&zzfxX.sampleRate?zzfxX.sampleRate:0);}catch(e){return 'diag-err';}}
+function sfxTest(){try{audioUnlock();}catch(e){}let played=false;try{const r=zzfxP([.6,.02,880,.01,.25,.3,1,.8,.2]);if(r)played=true;}catch(e){}setTimeout(()=>{try{zzfxP([.6,.02,1175,.01,.3,.35,1,.8,.2]);}catch(e){}},150);/* fallback: oscillatore puro */
+ try{if(zzfxX){const t=zzfxX.currentTime+.02,o=zzfxX.createOscillator(),g=zzfxX.createGain();o.type='square';o.frequency.value=880;g.gain.setValueAtTime(.25,t);g.gain.exponentialRampToValueAtTime(.001,t+.35);o.connect(g);g.connect(zzfxX.destination);o.start(t);o.stop(t+.4);played=true;}}catch(e){}
+ return played;}
 function sfxPower(){[392,523,659].forEach((f,i)=>setTimeout(()=>zzfxP([.5,.01,f,.005,.1,.15,1,.7,.15]),i*80));}
 /* --- musica procedurale: sequencer leggero per stato --- */
 let musicMode='menu',musicTimerId=null,musicStep=0,musicLastTick=0;
@@ -226,8 +236,8 @@ function musicTick(){
  musicLastTick=now;
  const pat=MUSIC_PATTERNS[musicMode]||MUSIC_PATTERNS.menu;
  const f=pat[musicStep%pat.length];musicStep++;
- if(f)zzfxP([.14,.01,f,.01,.14,.18,1,.9,0]);
- if(musicStep%2===0)zzfxP([.09,.05,(musicMode==='frenzy'?220:131),.005,.05,.08,2,1,0]);
+ if(f)zzfxP([.22,.01,f,.01,.16,.2,1,.9,0]);
+ if(musicStep%2===0)zzfxP([.14,.05,(musicMode==='frenzy'?220:131),.005,.06,.1,2,1,0]);
 }
 function musicStart(){if(musicTimerId)return;musicStep=0;musicLastTick=0;musicTimerId=setInterval(musicTick,240);}
 function musicStop(){if(musicTimerId){clearInterval(musicTimerId);musicTimerId=null;}}
@@ -859,8 +869,8 @@ function init(){
  applyScoreFrame();buildAura();
  addLayer(0,0,10,10,null);addLayer(0,0,10,10,null);refreshHUD();buildShop();
  addEventListener('resize',()=>{const a=innerWidth/innerHeight,dd=20;camera.left=-dd*a;camera.right=dd*a;camera.top=dd;camera.bottom=-dd;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
- addEventListener('pointerdown',e=>{const inMenu=!!e.target.closest('#menu');if(!inMenu)$('menu').classList.remove('open');if(inMenu||e.target.closest('button')||e.target.closest('#shop')||e.target.closest('#gameover'))return;handlePlace();});
- addEventListener('keydown',e=>{if(e.code==='Space'){e.preventDefault();if(!frenzyActive&&!blastActive)handlePlace();}if(e.code==='KeyR')restartGame();if(e.code==='KeyM')toggleSound();if(e.code==='KeyB'&&!frenzyActive&&!blastActive)detonateBomb();if(frenzyActive){if(e.code==='Digit1')shootFrenzy('red');if(e.code==='Digit2')shootFrenzy('green');if(e.code==='Digit3')shootFrenzy('blue');if(e.code==='Digit4')shootFrenzy('yellow');}if(blastActive){if(e.code==='Digit1')explodeBlast('red');if(e.code==='Digit2')explodeBlast('green');if(e.code==='Digit3')explodeBlast('blue');if(e.code==='Digit4')explodeBlast('yellow');}});
+ addEventListener('pointerdown',e=>{try{audioUnlock();}catch(_){}const inMenu=!!e.target.closest('#menu');if(!inMenu)$('menu').classList.remove('open');if(inMenu||e.target.closest('button')||e.target.closest('#shop')||e.target.closest('#gameover'))return;handlePlace();});
+ addEventListener('keydown',e=>{try{audioUnlock();}catch(_){}if(e.code==='Space'){e.preventDefault();if(!frenzyActive&&!blastActive)handlePlace();}if(e.code==='KeyR')restartGame();if(e.code==='KeyM')toggleSound();if(e.code==='KeyB'&&!frenzyActive&&!blastActive)detonateBomb();if(frenzyActive){if(e.code==='Digit1')shootFrenzy('red');if(e.code==='Digit2')shootFrenzy('green');if(e.code==='Digit3')shootFrenzy('blue');if(e.code==='Digit4')shootFrenzy('yellow');}if(blastActive){if(e.code==='Digit1')explodeBlast('red');if(e.code==='Digit2')explodeBlast('green');if(e.code==='Digit3')explodeBlast('blue');if(e.code==='Digit4')explodeBlast('yellow');}});
  $('shop-btn').onclick=e=>{e.stopPropagation();sfxUI();$('menu').classList.remove('open');$('shop').style.display='flex';refreshHUD();};
  $('go-shop').onclick=e=>{e.stopPropagation();sfxUI();$('shop').style.display='flex';refreshHUD();};
  $('shop-close').onclick=e=>{e.stopPropagation();sfxUI();$('shop').style.display='none';};
@@ -868,6 +878,7 @@ function init(){
  $('go-retry').onclick=e=>{e.stopPropagation();restartGame();};
  $('menu-btn').onclick=e=>{e.stopPropagation();sfxUI();$('menu').classList.toggle('open');};
  $('sound-btn').onclick=e=>{e.stopPropagation();toggleSound();};
+  $('test-btn').onclick=e=>{e.stopPropagation();const ok=sfxTest();const d=audioDiag();banner(ok?'🔔 Audio OK ('+d+')':'🔇 Audio KO ('+d+')');};
  document.querySelectorAll('.stab').forEach(t=>{t.onclick=e=>{e.stopPropagation();sfxUI();
   document.querySelectorAll('.stab').forEach(x=>x.classList.toggle('active',x===t));
   document.querySelectorAll('.stab-panel').forEach(p=>{p.style.display=(p.dataset.panel===t.dataset.tab)?'':'none';});
@@ -875,14 +886,18 @@ function init(){
  $('bomb-btn').onclick=e=>{e.stopPropagation();detonateBomb();};
  document.querySelectorAll('#frenzy-btns .frenzy-btn').forEach(b=>{b.onclick=e=>{e.stopPropagation();shootFrenzy(b.dataset.color);};});
   document.querySelectorAll('#blast-btns .blast-btn').forEach(b=>{b.onclick=e=>{e.stopPropagation();explodeBlast(b.dataset.color);};});
- // audio: sblocca AudioContext al primo gesto, avvia sequencer musica, sincronizza toggle
+ // audio: sblocca AudioContext al primo gesto (capture: prima del gameplay),
+ // ritenta resume su ogni gesto, avvia sequencer musica, sincronizza toggle
  try{
-  const unlock=()=>{zzfxInit();musicStart();refreshSoundBtn();};
-  addEventListener('pointerdown',unlock,{once:false});
-  addEventListener('keydown',unlock,{once:false});
+  const unlock=()=>{audioUnlock();};
+  addEventListener('pointerdown',unlock,{capture:true});
+  addEventListener('touchend',unlock,{capture:true});
+  addEventListener('keydown',unlock,{capture:true});
+  addEventListener('pointerup',unlock,{capture:true});
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)audioUnlock();});
   const st=document.getElementById('sound-toggle');if(st)st.onclick=e=>{e.stopPropagation();toggleSound();};
   const mt=document.getElementById('music-toggle');if(mt)mt.onclick=e=>{e.stopPropagation();toggleMusic();};
-  refreshSoundBtn();musicStart();
+  refreshSoundBtn();
  }catch(e){}
  renderer.setAnimationLoop(animation);
 }
