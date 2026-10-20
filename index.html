@@ -20,6 +20,8 @@ canvas{display:block}
 #special-banner.alert{font-size:1.75rem;color:#ffe72d;letter-spacing:.03em;animation:alertPulse .6s ease-in-out infinite;text-shadow:0 0 16px #ff71ce,0 2px 8px #000}
 @keyframes alertPulse{50%{transform:scale(1.07)}}
 #bomb-hud{position:fixed;left:12px;bottom:12px;z-index:15;display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+#power-hud{position:fixed;right:12px;bottom:12px;z-index:15;display:flex;flex-direction:column;gap:6px;align-items:flex-end;max-width:48vw}
+.power-chip{display:inline-flex;align-items:center;gap:5px;background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:5px 10px;font-size:.78rem;font-weight:700;box-shadow:0 4px 14px rgba(0,0,0,.4)}
 #bomb-btn{position:relative;overflow:hidden;font-size:1.15rem;font-weight:800;padding:10px 14px;border-radius:14px;cursor:pointer;border:1px solid rgba(255,255,255,.3);background:rgba(0,0,0,.6);color:#fff;box-shadow:0 4px 14px rgba(0,0,0,.4);min-width:110px}
 #bomb-btn:disabled{opacity:.45;cursor:default}
 #bomb-btn.ready{border-color:#ff3b30;box-shadow:0 0 12px #ff3b30}
@@ -78,13 +80,14 @@ canvas{display:block}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
-<div id="hud-left"><div class="pill" id="coins">🪙 0</div><div class="pill" id="perfect-pill">Perfect x0</div><div class="pill" id="run-power" style="display:none"></div></div>
+<div id="hud-left"><div class="pill" id="coins">🪙 0</div><div class="pill" id="perfect-pill">Perfect x0</div></div>
 <div id="ui"><div id="score-frame"><div id="score">0</div><div id="high-score">Record: 0</div></div><div id="badge"></div>
 <!-- HUD monete/perfect spostato in alto a sinistra -->
 <div id="special-banner"></div>
 </div>
 
 <div id="bomb-hud"><button id="bomb-btn" title="Usa bomba (B)"><div id="bomb-fill"></div><span id="bomb-label">💣 0/3</span></button></div>
+<div id="power-hud"></div>
 <div id="frenzy-hud"><div id="frenzy-title">🎨 FRENZY COLOR BLAST</div><div id="frenzy-timer"><div id="frenzy-timer-fill"></div></div><div id="frenzy-btns"><button class="frenzy-btn" data-color="red" style="background:#ff2d2d" aria-label="Spara rosso">🔴</button><button class="frenzy-btn" data-color="green" style="background:#2dff5e" aria-label="Spara verde">🟢</button><button class="frenzy-btn" data-color="blue" style="background:#2d7bff" aria-label="Spara blu">🔵</button><button class="frenzy-btn" data-color="yellow" style="background:#ffe72d" aria-label="Spara giallo">🟡</button></div><div id="frenzy-info" style="font-size:.8rem;font-weight:700;opacity:.9"></div></div>
 <div id="menu"><button class="btn" id="menu-btn" aria-label="Menu">&#9776;</button><div id="menu-popup"><button class="btn" id="restart-btn">Restart</button><button class="btn" id="shop-btn">Shop</button></div></div>
 <div id="flash"></div>
@@ -100,7 +103,7 @@ canvas{display:block}
   <div class="mini-h" style="color:#2dff5e">🖼️ Cornici del punteggio</div><div class="shop-row" id="frames"></div>
  </div>
  <div class="stab-panel" data-panel="consumabili" style="display:none">
-  <p class="hint">Prima compri, poi premi <b>Attiva</b>: va in scorta e si consuma alla prossima partita. Attivabili solo prima di posizionare il primo blocco.</p>
+  <p class="hint">Compra e premi <b>Attiva</b>: si applica <b>automaticamente a ogni partita</b> consumando 1 unità a partita, finché non lo disattivi o esaurisci la scorta. Attivazione/disattivazione solo prima del primo blocco.</p>
   <div class="shop-row" id="consumables"></div>
  </div>
  <div class="stab-panel" data-panel="miglioramenti" style="display:none">
@@ -208,7 +211,7 @@ function flash(op,color){const f=$('flash');f.style.background=color||'#fff';f.s
 function shake(m,t){shakeMag=Math.max(shakeMag,m);shakeTime=Math.max(shakeTime,t);}
 function banner(txt,ms){const b=$('special-banner');b.textContent=txt;clearTimeout(b._t);b._t=setTimeout(()=>b.textContent='',ms||2200);}
 function checkBadges(){BADGES.forEach(b=>{if(score>=b.score&&badges.indexOf(b.name)<0){badges.push(b.name);saveMeta();banner('🏅 Titolo sbloccato: '+b.name+'!',3200);flash(.6,'#ffe72d');vibrate([40,40,80]);}});}
-function refreshHUD(){$('score').textContent=score;$('high-score').textContent='Record: '+highScore;$('coins').textContent='🪙 '+coins;$('perfect-pill').textContent='Perfect x'+perfectStreak;$('perfect-pill').classList.toggle('hot',perfectStreak>0);$('shop-coins').textContent='monete '+coins;const bb=$('bomb-btn'),bf=$('bomb-fill'),bl=$('bomb-label');if(bb){if(bl)bl.textContent='💣 '+bombs+'/'+BOMB_MAX;else bb.textContent='💣 '+bombs+'/'+BOMB_MAX;bb.disabled=bombs<=0||gameEnded;bb.classList.toggle('ready',bombs>0);}if(bf){bf.style.width=(bombs>=BOMB_MAX?100:(bombProgress/BOMB_EVERY*100))+'%';}checkBadges();const bn=$('badge');if(bn){const un=BADGES.filter(b=>badges.indexOf(b.name)>=0);bn.textContent=un.length?'🏅 '+un[un.length-1].name:'';}const rp=$('run-power');if(rp){const parts=[];if(runLife)parts.push('❤️ Seconda Chance');if(runSlowLeft>0)parts.push('⏳ Rallenta '+runSlowLeft);if(runMagnet)parts.push('🧲 Calamita');if(parts.length){rp.style.display='inline-flex';rp.textContent=parts.join(' · ');}else rp.style.display='none';}}
+function refreshHUD(){$('score').textContent=score;$('high-score').textContent='Record: '+highScore;$('coins').textContent='🪙 '+coins;$('perfect-pill').textContent='Perfect x'+perfectStreak;$('perfect-pill').classList.toggle('hot',perfectStreak>0);$('shop-coins').textContent='monete '+coins;const bb=$('bomb-btn'),bf=$('bomb-fill'),bl=$('bomb-label');if(bb){if(bl)bl.textContent='💣 '+bombs+'/'+BOMB_MAX;else bb.textContent='💣 '+bombs+'/'+BOMB_MAX;bb.disabled=bombs<=0||gameEnded;bb.classList.toggle('ready',bombs>0);}if(bf){bf.style.width=(bombs>=BOMB_MAX?100:(bombProgress/BOMB_EVERY*100))+'%';}checkBadges();const bn=$('badge');if(bn){const un=BADGES.filter(b=>badges.indexOf(b.name)>=0);bn.textContent=un.length?'🏅 '+un[un.length-1].name:'';}const ph=$('power-hud');if(ph){let chips='';if(runLife)chips+='<span class="power-chip">❤️ Seconda Chance</span>';if(runSlowLeft>0)chips+='<span class="power-chip">⏳ Rallenta '+runSlowLeft+' turni</span>';if(runMagnet)chips+='<span class="power-chip">🧲 Calamita monete</span>';ph.innerHTML=chips;}}
 function applyScoreFrame(){const f=$('score-frame');if(!f)return;f.className=equip.frame==='none'?'':'f-'+equip.frame;}
 let mistTex=null;
 function goldMistTexture(){
@@ -432,11 +435,15 @@ async function handlePlace(){
  if($('shop').style.display==='flex')return;
  const firstPlace=!gameStarted;
  if(firstPlace){gameStarted=true;
-  if(pending.life||pending.slow||pending.magnet){
-   runLife=pending.life;runMagnet=pending.magnet;runSlowLeft=pending.slow?15:0;
-   pending.life=pending.slow=pending.magnet=false;saveMeta();
-   const on=[];if(runLife)on.push('❤️');if(runSlowLeft>0)on.push('⏳');if(runMagnet)on.push('🧲');
-   banner('Power-up attivi: '+on.join(' '),1800);
+  // consumo 1 unita' per ogni consumabile armato, solo all'inizio della partita
+  // (pending resta armato: vale per tutte le prossime partite finche' c'e' scorta)
+  const on=[];
+  ['life','slow','magnet'].forEach(k=>{if(pending[k]){if(inv[k]>0){inv[k]--;on.push(k);}else pending[k]=false;}});
+  if(on.length){
+   runLife=on.indexOf('life')>=0;runMagnet=on.indexOf('magnet')>=0;runSlowLeft=on.indexOf('slow')>=0?15:0;
+   saveMeta();
+   const ic=[];if(runLife)ic.push('❤️');if(runSlowLeft>0)ic.push('⏳');if(runMagnet)ic.push('🧲');
+   banner('Power-up attivi: '+ic.join(' '),1800);
   }
  }
  const top=stack[stack.length-1],prev=stack[stack.length-2];
@@ -476,9 +483,9 @@ async function handlePlace(){
   if(placed==='tnt')await detonateTNT();
   score++;if(score>highScore){highScore=score;localStorage.setItem('stack_3d_highscore',highScore);}
   if(!frenzyUnlocked&&highScore>=FRENZY_MIN_SCORE){frenzyUnlocked=true;try{localStorage.setItem('stack3d_frenzy_unlocked','1');}catch(e){}unlockFrenzyAlert();}
+  if(!firstPlace&&runSlowLeft>0){runSlowLeft--;if(runSlowLeft===0)banner('⏳ Rallentatore terminato',1500);}
   saveMeta();refreshHUD();
   currentDirection=currentDirection==='x'?'z':'x';if(placed!=='tnt')speed+=0.005;
-  if(!firstPlace&&runSlowLeft>0){runSlowLeft--;if(runSlowLeft===0)banner('⏳ Rallentatore terminato',1500);}
   // TNT come bomba/frenzy: dimensione nuovi pezzi resettata al top attuale (ref sotto), velocita' invariata (no reset, no aumento)
   currentSpecial=pickSpecial();
   if(currentSpecial)banner({tnt:'---- TNT IN ARRIVO ----',magnet:'---- MAGNETE IN ARRIVO ----',coin:'---- BLOCCO DORATO IN ARRIVO ----'}[currentSpecial],1800);
@@ -591,10 +598,13 @@ function buildConsumables(){
   const bc=document.createElement('button');bc.textContent='Compra';bc.className='buy';
   bc.onclick=()=>{if(coins<c.price){alert('Monete insufficienti!');return;}coins-=c.price;inv[k]++;saveMeta();refreshHUD();buildShop();};
   const ba=document.createElement('button');
-  if(pending[k]){ba.textContent='✓ Attivo';ba.className='on';ba.disabled=true;}
+  if(pending[k]){ba.textContent='Disattiva';ba.className='use';
+   ba.disabled=locked;
+   if(locked)ba.title='Disponibile solo prima del primo blocco';
+   ba.onclick=()=>{if(locked||!pending[k])return;pending[k]=false;saveMeta();refreshHUD();buildShop();banner(c.name+' disattivato');};}
   else{ba.textContent='Attiva';ba.className='act';ba.disabled=!(inv[k]>0)||locked;
    if(locked&&inv[k]>0)ba.title='Disponibile solo prima del primo blocco';
-   ba.onclick=()=>{if(inv[k]<=0||locked||pending[k])return;inv[k]--;pending[k]=true;saveMeta();refreshHUD();buildShop();banner(c.name+' in scorta per la prossima partita!');};}
+   ba.onclick=()=>{if(inv[k]<=0||locked||pending[k])return;pending[k]=true;saveMeta();refreshHUD();buildShop();banner(c.name+' attivo per ogni prossima partita!');};}
   wrap.appendChild(bc);wrap.appendChild(ba);d.appendChild(wrap);row.appendChild(d);
  });
 }
