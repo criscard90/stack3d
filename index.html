@@ -124,6 +124,8 @@ const FRENZY_CSS={red:'#ff2d2d',green:'#2dff5e',blue:'#2d7bff',yellow:'#ffe72d'}
 const FRENZY_CHECK_EVERY=15,FRENZY_CHANCE=0.10,FRENZY_DURATION=5,FRENZY_MIN_SCORE=50;
 let frenzyActive=false,frenzyTimeLeft=0,frenzyTimerId=null,frenzySinceCheck=0,frenzyFlashId=null,frenzyStartLen=0,frenzyHits=0;
 let frenzyUnlocked=false;
+// sblocco permanente: record >= 50 (una volta sola; se il record e' gia' >=50 al load, silenzioso)
+try{frenzyUnlocked=(localStorage.getItem('stack3d_frenzy_unlocked')==='1')||highScore>=FRENZY_MIN_SCORE;}catch(e){}
 let projectiles=[];
 // ===== SHOP: cataloghi (A estetici, B consumabili, C upgradabili, D cornici) =====
 const TRAILS={
@@ -356,9 +358,9 @@ function unlockFrenzyAlert(){
  b._alertT=setTimeout(()=>{if(b.textContent===txt)b.textContent='';b.classList.remove('alert');},4000);
  flash(.6,'#ff71ce');shake(.8,.6);vibrate([60,40,60,40,120]);
 }
-function frenzyMaybeTrigger(){if(frenzyActive||gameEnded||score<FRENZY_MIN_SCORE)return;frenzySinceCheck++;if(frenzySinceCheck<FRENZY_CHECK_EVERY)return;frenzySinceCheck=0;if(Math.random()<FRENZY_CHANCE)startFrenzy();}
+function frenzyMaybeTrigger(){if(frenzyActive||gameEnded||!frenzyUnlocked)return;frenzySinceCheck++;if(frenzySinceCheck<FRENZY_CHECK_EVERY)return;frenzySinceCheck=0;if(Math.random()<FRENZY_CHANCE)startFrenzy();}
 function startFrenzy(){
- if(frenzyActive||gameEnded||demolishing||stack.length<=4||score<FRENZY_MIN_SCORE)return;
+ if(frenzyActive||gameEnded||demolishing||stack.length<=4||!frenzyUnlocked)return;
  frenzyActive=true;frenzyTimeLeft=frenzyDuration();frenzyStartLen=stack.length;frenzyHits=0;
  // colora solo i blocchi piazzati della torre (conserva le 2 basi, escludi il pezzo in movimento in cima)
  for(let i=2;i<stack.length-1;i++)frenzyColorize(stack[i]);
@@ -468,7 +470,7 @@ async function handlePlace(){
   if(placed==='magnet'&&!isPerfect)banner('Magnete: attrazione assistita!');
   if(placed==='tnt')await detonateTNT();
   score++;if(score>highScore){highScore=score;localStorage.setItem('stack_3d_highscore',highScore);}
-  if(!frenzyUnlocked&&score>=FRENZY_MIN_SCORE){frenzyUnlocked=true;unlockFrenzyAlert();}
+  if(!frenzyUnlocked&&highScore>=FRENZY_MIN_SCORE){frenzyUnlocked=true;try{localStorage.setItem('stack3d_frenzy_unlocked','1');}catch(e){}unlockFrenzyAlert();}
   saveMeta();refreshHUD();
   currentDirection=currentDirection==='x'?'z':'x';if(placed!=='tnt')speed+=0.005;
   if(!firstPlace&&runSlowLeft>0){runSlowLeft--;if(runSlowLeft===0)banner('⏳ Rallentatore terminato',1500);}
@@ -550,7 +552,7 @@ function endGame(){
 function restartGame(){
  stack.forEach(l=>towerGroup.remove(l.mesh));overhangs.forEach(o=>scene.remove(o.mesh));particles.forEach(p=>scene.remove(p.mesh));projectiles.forEach(p=>scene.remove(p.mesh));
  stack=[];overhangs=[];particles=[];projectiles=[];score=0;speed=.15;gameEnded=false;gameStarted=false;currentDirection='x';bombs=0;bombProgress=0;demolishing=false;demolishSeq++;runLife=false;runSlowLeft=0;runMagnet=false;
- frenzyActive=false;frenzyTimeLeft=0;frenzySinceCheck=0;frenzyHits=0;frenzyUnlocked=false;clearInterval(frenzyTimerId);clearInterval(frenzyFlashId);frenzyTimerId=frenzyFlashId=null;
+ frenzyActive=false;frenzyTimeLeft=0;frenzySinceCheck=0;frenzyHits=0;clearInterval(frenzyTimerId);clearInterval(frenzyFlashId);frenzyTimerId=frenzyFlashId=null;
  currentSpecial=null;specialCountdown=5;perfectStreak=0;
  shakeTime=shakeMag=0;
  $('gameover').style.display='none';$('frenzy-hud').classList.remove('show');$('special-banner').textContent='';$('score').textContent='0';
