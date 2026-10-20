@@ -63,7 +63,7 @@ canvas{display:block}
 #shop-tabs{display:flex;gap:6px;margin-top:10px}
 .stab{flex:1;padding:8px 4px;font-family:inherit;font-size:.83rem;font-weight:700;color:#fff;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:10px;cursor:pointer;transition:box-shadow .15s,border-color .15s,color .15s}
 .stab.active{border-color:var(--accent);color:var(--accent);box-shadow:0 0 10px var(--accent)}
-.mini-h{font-size:.75rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;opacity:.65;margin:14px 0 4px}
+.mini-h{font-size:.75rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;opacity:.92;margin:14px 0 4px;text-shadow:0 0 8px currentColor}
 .shop-foot{position:sticky;bottom:-20px;margin:12px -20px -20px;padding:10px 20px 16px;background:#16162a;border-top:1px solid rgba(255,255,255,.12)}
 #shop .hint{font-size:.75rem;opacity:.72;margin:0 0 4px}
 @media(max-width:600px){#score{font-size:3rem}.pill{font-size:.72rem;padding:2px 8px}}
@@ -85,12 +85,12 @@ canvas{display:block}
 <div id="shop"><div class="card">
  <div class="shop-head"><h2 style="margin:0">Negozio <span id="shop-coins" style="float:right">0</span></h2><div id="shop-tabs"><button class="stab active" data-tab="estetica">🎨 Estetica</button><button class="stab" data-tab="consumabili">⚡ Consumabili</button><button class="stab" data-tab="miglioramenti">📈 Miglioramenti</button></div></div>
  <div class="stab-panel" data-panel="estetica">
-  <div class="mini-h">🎨 Temi grafici</div><div class="shop-row" id="themes"></div>
-  <div class="mini-h">🧱 Forme blocchi</div><div class="shop-row" id="shapes"></div>
-  <div class="mini-h">✨ Scie dei blocchi</div><div class="shop-row" id="trails"></div>
-  <div class="mini-h">💥 Effetti di distruzione</div><div class="shop-row" id="cutefx"></div>
-  <div class="mini-h">🌟 Auree della torre</div><div class="shop-row" id="auras"></div>
-  <div class="mini-h">🖼️ Cornici del punteggio</div><div class="shop-row" id="frames"></div>
+  <div class="mini-h" style="color:#ff71ce">🎨 Temi grafici</div><div class="shop-row" id="themes"></div>
+  <div class="mini-h" style="color:#01cdfe">🧱 Forme blocchi</div><div class="shop-row" id="shapes"></div>
+  <div class="mini-h" style="color:#b388ff">✨ Scie dei blocchi</div><div class="shop-row" id="trails"></div>
+  <div class="mini-h" style="color:#ff5f5f">💥 Effetti di distruzione</div><div class="shop-row" id="cutefx"></div>
+  <div class="mini-h" style="color:#ffd700">🌟 Auree della torre</div><div class="shop-row" id="auras"></div>
+  <div class="mini-h" style="color:#2dff5e">🖼️ Cornici del punteggio</div><div class="shop-row" id="frames"></div>
  </div>
  <div class="stab-panel" data-panel="consumabili" style="display:none">
   <p class="hint">Prima compri, poi premi <b>Attiva</b>: va in scorta e si consuma alla prossima partita. Attivabili solo prima di posizionare il primo blocco.</p>
