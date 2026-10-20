@@ -211,7 +211,14 @@ function flash(op,color){const f=$('flash');f.style.background=color||'#fff';f.s
 function shake(m,t){shakeMag=Math.max(shakeMag,m);shakeTime=Math.max(shakeTime,t);}
 function banner(txt,ms){const b=$('special-banner');b.textContent=txt;clearTimeout(b._t);b._t=setTimeout(()=>b.textContent='',ms||2200);}
 function checkBadges(){BADGES.forEach(b=>{if(score>=b.score&&badges.indexOf(b.name)<0){badges.push(b.name);saveMeta();banner('🏅 Titolo sbloccato: '+b.name+'!',3200);flash(.6,'#ffe72d');vibrate([40,40,80]);}});}
-function refreshHUD(){$('score').textContent=score;$('high-score').textContent='Record: '+highScore;$('coins').textContent='🪙 '+coins;$('perfect-pill').textContent='Perfect x'+perfectStreak;$('perfect-pill').classList.toggle('hot',perfectStreak>0);$('shop-coins').textContent='monete '+coins;const bb=$('bomb-btn'),bf=$('bomb-fill'),bl=$('bomb-label');if(bb){if(bl)bl.textContent='💣 '+bombs+'/'+BOMB_MAX;else bb.textContent='💣 '+bombs+'/'+BOMB_MAX;bb.disabled=bombs<=0||gameEnded;bb.classList.toggle('ready',bombs>0);}if(bf){bf.style.width=(bombs>=BOMB_MAX?100:(bombProgress/BOMB_EVERY*100))+'%';}checkBadges();const bn=$('badge');if(bn){const un=BADGES.filter(b=>badges.indexOf(b.name)>=0);bn.textContent=un.length?'🏅 '+un[un.length-1].name:'';}const ph=$('power-hud');if(ph){let chips='';if(runLife)chips+='<span class="power-chip">❤️ Seconda Chance</span>';if(runSlowLeft>0)chips+='<span class="power-chip">⏳ Rallenta '+runSlowLeft+' turni</span>';if(runMagnet)chips+='<span class="power-chip">🧲 Calamita monete</span>';ph.innerHTML=chips;}}
+function refreshHUD(){$('score').textContent=score;$('high-score').textContent='Record: '+highScore;$('coins').textContent='🪙 '+coins;$('perfect-pill').textContent='Perfect x'+perfectStreak;$('perfect-pill').classList.toggle('hot',perfectStreak>0);$('shop-coins').textContent='monete '+coins;const bb=$('bomb-btn'),bf=$('bomb-fill'),bl=$('bomb-label');if(bb){if(bl)bl.textContent='💣 '+bombs+'/'+BOMB_MAX;else bb.textContent='💣 '+bombs+'/'+BOMB_MAX;bb.disabled=bombs<=0||gameEnded;bb.classList.toggle('ready',bombs>0);}if(bf){bf.style.width=(bombs>=BOMB_MAX?100:(bombProgress/BOMB_EVERY*100))+'%';}checkBadges();const bn=$('badge');if(bn){const un=BADGES.filter(b=>badges.indexOf(b.name)>=0);bn.textContent=un.length?'🏅 '+un[un.length-1].name:'';}const ph=$('power-hud');if(ph){let chips='';const preRun=!gameStarted||gameEnded;
+ if(runLife)chips+='<span class="power-chip">❤️ Seconda Chance</span>';
+ else if(preRun&&pending.life&&inv.life>0)chips+='<span class="power-chip">❤️ Seconda Chance ×'+inv.life+'</span>';
+ if(runSlowLeft>0)chips+='<span class="power-chip">⏳ Rallenta '+runSlowLeft+' turni</span>';
+ else if(preRun&&pending.slow&&inv.slow>0)chips+='<span class="power-chip">⏳ Rallenta ×'+inv.slow+'</span>';
+ if(runMagnet)chips+='<span class="power-chip">🧲 Calamita monete</span>';
+ else if(preRun&&pending.magnet&&inv.magnet>0)chips+='<span class="power-chip">🧲 Calamita ×'+inv.magnet+'</span>';
+ ph.innerHTML=chips;}}
 function applyScoreFrame(){const f=$('score-frame');if(!f)return;f.className=equip.frame==='none'?'':'f-'+equip.frame;}
 let mistTex=null;
 function goldMistTexture(){
