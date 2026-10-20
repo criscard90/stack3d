@@ -30,10 +30,12 @@ canvas{display:block}
 #bomb-label{position:relative;z-index:1}
 #frenzy-hud{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:18;display:none;flex-direction:column;align-items:center;gap:8px;background:rgba(0,0,0,.65);border:1px solid rgba(255,255,255,.3);border-radius:16px;padding:10px 14px;box-shadow:0 8px 24px rgba(0,0,0,.5);max-width:96vw}
 #frenzy-hud.show{display:flex}
-#frenzy-title{font-weight:800;font-size:.95rem;letter-spacing:.04em;text-shadow:0 2px 6px #000}
-#frenzy-timer{width:220px;max-width:70vw;height:10px;border-radius:999px;background:rgba(255,255,255,.15);overflow:hidden;border:1px solid rgba(255,255,255,.25)}
-#frenzy-timer-fill{height:100%;width:100%;background:linear-gradient(90deg,#ff2d2d,#2dff5e,#2d7bff,#ffe72d);transition:width .1s linear}
-#frenzy-btns{display:flex;gap:10px}
+#blast-hud{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:18;display:none;flex-direction:column;align-items:center;gap:8px;background:rgba(0,0,0,.65);border:1px solid rgba(255,255,255,.3);border-radius:16px;padding:10px 14px;box-shadow:0 8px 24px rgba(0,0,0,.5);max-width:96vw}
+#blast-hud.show{display:flex}
+#frenzy-title,#blast-title{font-weight:800;font-size:.95rem;letter-spacing:.04em;text-shadow:0 2px 6px #000}
+#frenzy-timer,#blast-timer{width:220px;max-width:70vw;height:10px;border-radius:999px;background:rgba(255,255,255,.15);overflow:hidden;border:1px solid rgba(255,255,255,.25)}
+#frenzy-timer-fill,#blast-timer-fill{height:100%;width:100%;background:linear-gradient(90deg,#ff2d2d,#2dff5e,#2d7bff,#ffe72d);transition:width .1s linear}
+#frenzy-btns,#blast-btns{display:flex;gap:10px}
 .frenzy-btn{width:56px;height:56px;border-radius:50%;border:3px solid rgba(255,255,255,.85);cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.5);font-size:1.3rem}
 .frenzy-btn:active{transform:scale(.92)}
 
@@ -89,6 +91,7 @@ canvas{display:block}
 <div id="bomb-hud"><button id="bomb-btn" title="Usa bomba (B)"><div id="bomb-fill"></div><span id="bomb-label">💣 0/3</span></button></div>
 <div id="power-hud"></div>
 <div id="frenzy-hud"><div id="frenzy-title">🎨 FRENZY COLOR BLAST</div><div id="frenzy-timer"><div id="frenzy-timer-fill"></div></div><div id="frenzy-btns"><button class="frenzy-btn" data-color="red" style="background:#ff2d2d" aria-label="Spara rosso">🔴</button><button class="frenzy-btn" data-color="green" style="background:#2dff5e" aria-label="Spara verde">🟢</button><button class="frenzy-btn" data-color="blue" style="background:#2d7bff" aria-label="Spara blu">🔵</button><button class="frenzy-btn" data-color="yellow" style="background:#ffe72d" aria-label="Spara giallo">🟡</button></div><div id="frenzy-info" style="font-size:.8rem;font-weight:700;opacity:.9"></div></div>
+<div id="blast-hud"><div id="blast-title">💥 COLOR BLAST</div><div id="blast-timer"><div id="blast-timer-fill"></div></div><div id="blast-btns"><button class="frenzy-btn blast-btn" data-color="red" style="background:#ff2d2d" aria-label="Esplodi rosso">🔴</button><button class="frenzy-btn blast-btn" data-color="green" style="background:#2dff5e" aria-label="Esplodi verde">🟢</button><button class="frenzy-btn blast-btn" data-color="blue" style="background:#2d7bff" aria-label="Esplodi blu">🔵</button><button class="frenzy-btn blast-btn" data-color="yellow" style="background:#ffe72d" aria-label="Esplodi giallo">🟡</button></div><div id="blast-info" style="font-size:.8rem;font-weight:700;opacity:.9"></div></div>
 <div id="menu"><button class="btn" id="menu-btn" aria-label="Menu">&#9776;</button><div id="menu-popup"><button class="btn" id="restart-btn">Restart</button><button class="btn" id="shop-btn">Shop</button></div></div>
 <div id="flash"></div>
 <div id="gameover"><div class="card"><h1>GAME OVER</h1><p id="go-reason"></p><p id="go-stats"></p><button class="btn" id="go-retry">Gioca ancora</button> <button class="btn" id="go-shop">Shop</button></div></div>
@@ -134,6 +137,13 @@ let frenzyActive=false,frenzyTimeLeft=0,frenzyTimerId=null,frenzySinceCheck=0,fr
 let frenzyUnlocked=false;
 // sblocco permanente: record >= 50 (una volta sola; se il record e' gia' >=50 al load, silenzioso)
 try{frenzyUnlocked=(localStorage.getItem('stack3d_frenzy_unlocked')==='1')||highScore>=FRENZY_MIN_SCORE;}catch(e){}
+// ===== COLOR BLAST: evento gemello del frenzy, sblocco permanente a 75 =====
+// Durata totale 8s = 4 ondate x 2s: a ogni ondata la torre si ricolora con nuova combinazione casuale.
+// I 4 tasti fanno esplodere TUTTI i blocchi di quel colore (non solo la cima).
+const BLAST_MIN_SCORE=75,BLAST_DURATION=8,BLAST_WAVES=4,BLAST_WAVE_TIME=2,BLAST_CHECK_EVERY=15,BLAST_CHANCE=0.10;
+let blastActive=false,blastTimeLeft=0,blastTimerId=null,blastWaveId=null,blastFlashId=null,blastSinceCheck=0,blastWave=0,blastHits=0;
+let blastUnlocked=false;
+try{blastUnlocked=(localStorage.getItem('stack3d_blast_unlocked')==='1')||highScore>=BLAST_MIN_SCORE;}catch(e){}
 let projectiles=[];
 // ===== SHOP: cataloghi (A estetici, B consumabili, C upgradabili, D cornici) =====
 const TRAILS={
@@ -354,7 +364,7 @@ function applyCutFx(pos,baseColors){
  else spawnBurst(pos,baseColors,10);
 }
 function addOverhang(x,z,w,d,color){const y=boxHeight*(stack.length-1);const mesh=makeMesh(w,boxHeight,d,null);mesh.material=new THREE.MeshLambertMaterial({color:color||0xffffff});mesh.position.set(x,y,z);scene.add(mesh);applyCutFx(mesh.position,THEMES[themeId].part);overhangs.push({mesh:mesh,speedY:0,rx:(Math.random()-.5)*.08,rz:(Math.random()-.5)*.08,vx:(Math.random()-.5)*.3,vz:(Math.random()-.5)*.3});}
-function pickSpecial(){if(frenzyActive)return null;if(score<4)return null;specialCountdown--;if(specialCountdown>0)return null;specialCountdown=5+Math.floor(Math.random()*5);const r=Math.random();const pc=runMagnet?.525:.35;if(r<pc)return 'coin';if(r<pc+.3)return 'magnet';return 'tnt';}
+function pickSpecial(){if(frenzyActive||blastActive)return null;if(score<4)return null;specialCountdown--;if(specialCountdown>0)return null;specialCountdown=5+Math.floor(Math.random()*5);const r=Math.random();const pc=runMagnet?.525:.35;if(r<pc)return 'coin';if(r<pc+.3)return 'magnet';return 'tnt';}
 function topIsMovingTarget(){return stack.length>1&&!stack[stack.length-1].frenzyColor;}
 function frenzyColorize(l){const c=FRENZY_COLORS[Math.floor(Math.random()*FRENZY_COLORS.length)];l.frenzyColor=c;try{const m=l.mesh;if(!m.userData.frenzyOrig){m.userData.frenzyOrig=m.material.color.clone();try{m.userData.frenzyEmiOrig=m.material.emissive?m.material.emissive.getHex():0;}catch(e){m.userData.frenzyEmiOrig=0;}m.userData.frenzyHadMap=!!m.material.map;m.userData.frenzyMapOrig=m.material.map||null;}
   // i blocchi speciali (moneta/magnete/TNT) hanno una texture: va tolta durante il frenzy
@@ -373,9 +383,9 @@ function unlockFrenzyAlert(){
  b._alertT=setTimeout(()=>{if(b.textContent===txt)b.textContent='';b.classList.remove('alert');},4000);
  flash(.6,'#ff71ce');shake(.8,.6);vibrate([60,40,60,40,120]);
 }
-function frenzyMaybeTrigger(){if(frenzyActive||gameEnded||!frenzyUnlocked)return;frenzySinceCheck++;if(frenzySinceCheck<FRENZY_CHECK_EVERY)return;frenzySinceCheck=0;if(Math.random()<FRENZY_CHANCE)startFrenzy();}
+function frenzyMaybeTrigger(){if(frenzyActive||blastActive||gameEnded||!frenzyUnlocked)return;frenzySinceCheck++;if(frenzySinceCheck<FRENZY_CHECK_EVERY)return;frenzySinceCheck=0;if(Math.random()<FRENZY_CHANCE)startFrenzy();}
 function startFrenzy(){
- if(frenzyActive||gameEnded||demolishing||stack.length<=4||!frenzyUnlocked)return;
+ if(frenzyActive||blastActive||gameEnded||demolishing||stack.length<=4||!frenzyUnlocked)return;
  frenzyActive=true;frenzyTimeLeft=frenzyDuration();frenzyStartLen=stack.length;frenzyHits=0;
  // colora solo i blocchi piazzati della torre (conserva le 2 basi, escludi il pezzo in movimento in cima)
  for(let i=2;i<stack.length-1;i++)frenzyColorize(stack[i]);
@@ -435,10 +445,84 @@ function endFrenzy(){
  banner('Frenzy finito! -'+frenzyHits+' pezzi');flash(.5,'#ffffff');saveMeta();refreshHUD();
  frenzySinceCheck=0;
 }
+function unlockBlastAlert(){
+ const b=$('special-banner');
+ const txt='💥 COLOR BLAST SBLOCCATO! ✨';
+ b.textContent=txt;
+ b.classList.add('alert');
+ flash(.7,'#ffe72d');shake(1,.7);vibrate([60,40,60,40,120]);
+ setTimeout(()=>{if(b.textContent===txt){b.textContent='';b.classList.remove('alert');}},4000);
+}
+function blastMaybeTrigger(){if(blastActive||frenzyActive||gameEnded||!blastUnlocked)return;blastSinceCheck++;if(blastSinceCheck<BLAST_CHECK_EVERY)return;blastSinceCheck=0;if(Math.random()<BLAST_CHANCE)startBlast();}
+function blastRepaintWave(){
+ for(let i=2;i<stack.length-1;i++)frenzyColorize(stack[i]);
+ updateBlastHUD();
+}
+function startBlast(){
+ if(blastActive||gameEnded||demolishing||frenzyActive||stack.length<=4||!blastUnlocked)return;
+ blastActive=true;blastTimeLeft=BLAST_DURATION;blastWave=1;blastHits=0;
+ for(let i=2;i<stack.length-1;i++)frenzyColorize(stack[i]);
+ $('blast-hud').classList.add('show');updateBlastHUD();
+ banner('💥 COLOR BLAST! ONDATA 1/4');flash(.6,'#ffe72d');shake(.6,.5);vibrate([60,40,60,40,80]);
+ clearInterval(blastTimerId);clearInterval(blastWaveId);clearInterval(blastFlashId);
+ blastTimerId=setInterval(()=>{blastTimeLeft-=.1;if(blastTimeLeft<=0){endBlast();return;}updateBlastHUD();},100);
+ blastWaveId=setInterval(()=>{
+  if(!blastActive)return;
+  blastWave++;
+  if(blastWave>BLAST_WAVES)return;
+  blastRepaintWave();
+  banner('💥 ONDATA '+blastWave+'/'+BLAST_WAVES);flash(.4,'#ffe72d');shake(.4,.3);vibrate(50);
+ },BLAST_WAVE_TIME*1000);
+ blastFlashId=setInterval(()=>{const h=$('blast-hud');if(h)h.style.borderColor=h.style.borderColor==='gold'?'rgba(255,255,255,.3)':'gold';},300);
+}
+function updateBlastHUD(){
+ const f=$('blast-timer-fill');if(f)f.style.width=Math.max(0,blastTimeLeft/BLAST_DURATION*100)+'%';
+ const cnt={red:0,green:0,blue:0,yellow:0};
+ for(let i=2;i<stack.length-1;i++){const c=stack[i].frenzyColor;if(c&&cnt[c]!==undefined)cnt[c]++;}
+ const i=$('blast-info');
+ if(i)i.innerHTML='Ondata '+Math.min(blastWave,BLAST_WAVES)+'/'+BLAST_WAVES+' · 🔴'+cnt.red+' 🟢'+cnt.green+' 🔵'+cnt.blue+' 🟡'+cnt.yellow+' · Distrutti: '+blastHits+' · '+Math.max(0,blastTimeLeft).toFixed(1)+'s';
+}
+function explodeBlast(color){
+ if(!blastActive||gameEnded||demolishing)return;
+ const idxs=[];
+ for(let i=stack.length-2;i>=2;i--){if(stack[i].frenzyColor===color)idxs.push(i);}
+ if(!idxs.length){
+  banner('Nessun blocco '+color+'!');
+  const n=frenzyTop();const pp=n?new THREE.Vector3(n.mesh.position.x,n.mesh.position.y+1,n.mesh.position.z):new THREE.Vector3(0,stack.length,0);
+  spawnBurst(pp,['#888888','#555555'],10,4);vibrate(20);
+  return;
+ }
+ let removed=0;
+ for(const idx of idxs){
+  const l=stack.splice(idx,1)[0];
+  const pp=new THREE.Vector3();l.mesh.getWorldPosition(pp);
+  spawnBurst(pp,[FRENZY_CSS[color],'#ffffff'],22,5);
+  towerGroup.remove(l.mesh);removed++;
+ }
+ blastHits+=removed;score+=removed;coins+=removed*2;
+ if(score>highScore){highScore=score;localStorage.setItem('stack_3d_highscore',highScore);}
+ flash(.35,FRENZY_CSS[color]);shake(.35,.3);vibrate(40);
+ for(let i=0;i<stack.length;i++){stack[i].mesh.position.y=boxHeight*i;}
+ refreshHUD();updateBlastHUD();
+ banner('💥 +'+removed+' '+color.toUpperCase()+'!');
+}
+function endBlast(){
+ if(!blastActive)return;
+ blastActive=false;
+ clearInterval(blastTimerId);clearInterval(blastWaveId);clearInterval(blastFlashId);
+ blastTimerId=blastWaveId=blastFlashId=null;
+ const h=$('blast-hud');if(h){h.classList.remove('show');h.style.borderColor='rgba(255,255,255,.3)';}
+ for(let i=0;i<stack.length;i++){if(stack[i].frenzyColor)frenzyRestore(stack[i]);try{stack[i].mesh.scale.y=boxHeight;}catch(e){}}
+ // come endFrenzy: adatta il pezzo in movimento al top fisico rimasto, speed invariata
+ const topNow=stack[stack.length-2];const moving=stack[stack.length-1];
+ if(topNow&&moving){moving.width=topNow.width;moving.depth=topNow.depth;moving.mesh.scale.x=Math.max(topNow.width,.001);moving.mesh.scale.z=Math.max(topNow.depth,.001);moving.mesh.position.x=topNow.mesh.position.x;moving.mesh.position.z=topNow.mesh.position.z;moving.x=moving.mesh.position.x;moving.z=moving.mesh.position.z;moving.mesh.position.y=boxHeight*(stack.length-1);}
+ banner('Color Blast finito! -'+blastHits+' pezzi');flash(.5,'#ffffff');saveMeta();refreshHUD();
+ blastSinceCheck=0;
+}
 
 async function handlePlace(){
  if(gameEnded){restartGame();return;}
- if(demolishing||frenzyActive)return;
+ if(demolishing||frenzyActive||blastActive)return;
  if($('shop').style.display==='flex')return;
  const firstPlace=!gameStarted;
  if(firstPlace){gameStarted=true;
@@ -490,6 +574,7 @@ async function handlePlace(){
   if(placed==='tnt')await detonateTNT();
   score++;if(score>highScore){highScore=score;localStorage.setItem('stack_3d_highscore',highScore);}
   if(!frenzyUnlocked&&highScore>=FRENZY_MIN_SCORE){frenzyUnlocked=true;try{localStorage.setItem('stack3d_frenzy_unlocked','1');}catch(e){}unlockFrenzyAlert();}
+   if(!blastUnlocked&&highScore>=BLAST_MIN_SCORE){blastUnlocked=true;try{localStorage.setItem('stack3d_blast_unlocked','1');}catch(e){}unlockBlastAlert();}
   if(!firstPlace&&runSlowLeft>0){runSlowLeft--;if(runSlowLeft===0)banner('⏳ Rallentatore terminato',1500);}
   saveMeta();refreshHUD();
   currentDirection=currentDirection==='x'?'z':'x';if(placed!=='tnt')speed+=0.005;
@@ -497,7 +582,7 @@ async function handlePlace(){
   currentSpecial=pickSpecial();
   if(currentSpecial)banner({tnt:'---- TNT IN ARRIVO ----',magnet:'---- MAGNETE IN ARRIVO ----',coin:'---- BLOCCO DORATO IN ARRIVO ----'}[currentSpecial],1800);
   const ref=stack[stack.length-1];addLayer(currentDirection==='x'?-20:ref.mesh.position.x,currentDirection==='z'?-20:ref.mesh.position.z,ref.width,ref.depth,currentSpecial);
-  frenzyMaybeTrigger();
+  frenzyMaybeTrigger();blastMaybeTrigger();
  }else if(runLife){
   runLife=false;
   const wp=new THREE.Vector3();top.mesh.getWorldPosition(wp);
@@ -511,7 +596,7 @@ async function handlePlace(){
  }else{endGame();}
 }
 async function detonateBomb(){
- if(gameEnded||demolishing||frenzyActive||bombs<=0||stack.length<=3)return;
+ if(gameEnded||demolishing||frenzyActive||blastActive||bombs<=0||stack.length<=3)return;
  demolishing=true;const mySeq=++demolishSeq;
  bombs--;refreshHUD();
  const total=Math.min(BOMB_POWER,(stack.length-1)-2);
@@ -562,6 +647,7 @@ async function detonateTNT(){
 function endGame(){
  if(gameEnded)return;gameEnded=true;vibrate(80);shake(1,.7);flash(.5,'#ff0044');
  if(frenzyActive){frenzyActive=false;clearInterval(frenzyTimerId);clearInterval(frenzyFlashId);frenzyTimerId=frenzyFlashId=null;projectiles.forEach(p=>scene.remove(p.mesh));projectiles=[];$('frenzy-hud').classList.remove('show');for(let i=0;i<stack.length;i++){if(stack[i].frenzyColor)frenzyRestore(stack[i]);}}
+  if(blastActive){blastActive=false;clearInterval(blastTimerId);clearInterval(blastWaveId);clearInterval(blastFlashId);blastTimerId=blastWaveId=blastFlashId=null;$('blast-hud').classList.remove('show');for(let i=0;i<stack.length;i++){if(stack[i].frenzyColor)frenzyRestore(stack[i]);}}
  const top=stack[stack.length-1];
  if(top){addOverhang(top.mesh.position.x,top.mesh.position.z,top.width,top.depth,top.mesh.material.color.clone());towerGroup.remove(top.mesh);}
  $('go-reason').textContent='Hai mancato il blocco!';
@@ -572,9 +658,10 @@ function restartGame(){
  stack.forEach(l=>towerGroup.remove(l.mesh));overhangs.forEach(o=>scene.remove(o.mesh));particles.forEach(p=>scene.remove(p.mesh));projectiles.forEach(p=>scene.remove(p.mesh));
  stack=[];overhangs=[];particles=[];projectiles=[];score=0;speed=.15;gameEnded=false;gameStarted=false;currentDirection='x';bombs=0;bombProgress=0;demolishing=false;demolishSeq++;runLife=false;runSlowLeft=0;runMagnet=false;
  frenzyActive=false;frenzyTimeLeft=0;frenzySinceCheck=0;frenzyHits=0;clearInterval(frenzyTimerId);clearInterval(frenzyFlashId);frenzyTimerId=frenzyFlashId=null;
+  blastActive=false;blastTimeLeft=0;blastWave=0;blastSinceCheck=0;blastHits=0;clearInterval(blastTimerId);clearInterval(blastWaveId);clearInterval(blastFlashId);blastTimerId=blastWaveId=blastFlashId=null;
  currentSpecial=null;specialCountdown=5;perfectStreak=0;
  shakeTime=shakeMag=0;
- $('gameover').style.display='none';$('frenzy-hud').classList.remove('show');$('special-banner').textContent='';$('score').textContent='0';
+ $('gameover').style.display='none';$('frenzy-hud').classList.remove('show');$('blast-hud').classList.remove('show');$('special-banner').textContent='';$('score').textContent='0';
  $('menu').classList.remove('open');
  addLayer(0,0,10,10,null);addLayer(0,0,10,10,null);
  camera.position.set(20,20,20);camera.lookAt(0,0,0);refreshHUD();
@@ -652,7 +739,7 @@ function init(){
  addLayer(0,0,10,10,null);addLayer(0,0,10,10,null);refreshHUD();buildShop();
  addEventListener('resize',()=>{const a=innerWidth/innerHeight,dd=20;camera.left=-dd*a;camera.right=dd*a;camera.top=dd;camera.bottom=-dd;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
  addEventListener('pointerdown',e=>{const inMenu=!!e.target.closest('#menu');if(!inMenu)$('menu').classList.remove('open');if(inMenu||e.target.closest('button')||e.target.closest('#shop')||e.target.closest('#gameover'))return;handlePlace();});
- addEventListener('keydown',e=>{if(e.code==='Space'){e.preventDefault();if(!frenzyActive)handlePlace();}if(e.code==='KeyR')restartGame();if(e.code==='KeyB'&&!frenzyActive)detonateBomb();if(frenzyActive){if(e.code==='Digit1')shootFrenzy('red');if(e.code==='Digit2')shootFrenzy('green');if(e.code==='Digit3')shootFrenzy('blue');if(e.code==='Digit4')shootFrenzy('yellow');}});
+ addEventListener('keydown',e=>{if(e.code==='Space'){e.preventDefault();if(!frenzyActive&&!blastActive)handlePlace();}if(e.code==='KeyR')restartGame();if(e.code==='KeyB'&&!frenzyActive&&!blastActive)detonateBomb();if(frenzyActive){if(e.code==='Digit1')shootFrenzy('red');if(e.code==='Digit2')shootFrenzy('green');if(e.code==='Digit3')shootFrenzy('blue');if(e.code==='Digit4')shootFrenzy('yellow');}if(blastActive){if(e.code==='Digit1')explodeBlast('red');if(e.code==='Digit2')explodeBlast('green');if(e.code==='Digit3')explodeBlast('blue');if(e.code==='Digit4')explodeBlast('yellow');}});
  $('shop-btn').onclick=e=>{e.stopPropagation();$('menu').classList.remove('open');$('shop').style.display='flex';refreshHUD();};
  $('go-shop').onclick=e=>{e.stopPropagation();$('shop').style.display='flex';refreshHUD();};
  $('shop-close').onclick=e=>{e.stopPropagation();$('shop').style.display='none';};
@@ -664,7 +751,8 @@ function init(){
   document.querySelectorAll('.stab-panel').forEach(p=>{p.style.display=(p.dataset.panel===t.dataset.tab)?'':'none';});
  };});
  $('bomb-btn').onclick=e=>{e.stopPropagation();detonateBomb();};
- document.querySelectorAll('.frenzy-btn').forEach(b=>{b.onclick=e=>{e.stopPropagation();shootFrenzy(b.dataset.color);};});
+ document.querySelectorAll('#frenzy-btns .frenzy-btn').forEach(b=>{b.onclick=e=>{e.stopPropagation();shootFrenzy(b.dataset.color);};});
+  document.querySelectorAll('#blast-btns .blast-btn').forEach(b=>{b.onclick=e=>{e.stopPropagation();explodeBlast(b.dataset.color);};});
  renderer.setAnimationLoop(animation);
 }
 function animation(){
@@ -674,14 +762,14 @@ function animation(){
   if(top.special==='tnt'){top.mesh.material.emissive.setHex(Math.sin(blinkT*18)>0?0xff2222:0x440000);const puls=1+Math.sin(blinkT*18)*0.04;top.mesh.scale.y=boxHeight*puls;}
   if(top.special==='coin'){top.mesh.rotation.y+=0.06;try{top.mesh.material.emissive.setHex(Math.sin(blinkT*9)>0?0xcc9900:0x554400);}catch(e){}}
   if(top.special==='magnet'){try{top.mesh.material.emissive.setHex(Math.sin(blinkT*10)>0?0x00aaff:0x003355);}catch(e){}}
-  if(!frenzyActive&&!demolishing){top.mesh.position[currentDirection]+=speed*(runSlowLeft>0?0.8:1);
+  if(!frenzyActive&&!blastActive&&!demolishing){top.mesh.position[currentDirection]+=speed*(runSlowLeft>0?0.8:1);
    if(top.mesh.position[currentDirection]>20)top.mesh.position[currentDirection]=-20;
    if(equip.trail!=='none'){trailTick++;const st=TRAILS[equip.trail];if(st&&st.every&&trailTick%st.every===0){const wp=new THREE.Vector3();top.mesh.getWorldPosition(wp);wp.y-=boxHeight*.45;pushParticle(wp,{colors:st.colors,power:st.power,up:st.up,life:st.life,g:st.g,scale:st.scale});}}}
  }
  // sfere frenzy: cadono dall'alto verso la cima, all'impatto verifica il match colore
  for(let i=projectiles.length-1;i>=0;i--){const pr=projectiles[i];pr.t+=dt*2.2;if(pr.t>=1){scene.remove(pr.mesh);projectiles.splice(i,1);const cur=frenzyTop();if(frenzyActive&&cur)frenzyHit(cur,pr.color);}else{pr.mesh.position.lerpVectors(pr.from,pr.target,pr.t);pr.mesh.scale.setScalar(1+Math.sin(pr.t*Math.PI)*.3);}}
  // pulse dei blocchi frenzy
- if(frenzyActive){const pu=1+Math.sin(blinkT*10)*.03;for(let i=2;i<stack.length-1;i++){const l=stack[i];if(l&&l.frenzyColor){try{l.mesh.scale.y=boxHeight*pu;}catch(e){}}}}
+ if(frenzyActive||blastActive){const pu=1+Math.sin(blinkT*10)*.03;for(let i=2;i<stack.length-1;i++){const l=stack[i];if(l&&l.frenzyColor){try{l.mesh.scale.y=boxHeight*pu;}catch(e){}}}}
  updateAura();
  overhangs.forEach(o=>{o.speedY-=0.05;o.mesh.position.y+=o.speedY;o.mesh.position.x+=o.vx;o.mesh.position.z+=o.vz;o.mesh.rotation.x+=o.rx;o.mesh.rotation.z+=o.rz;});
  overhangs=overhangs.filter(o=>{if(o.mesh.position.y<-30){scene.remove(o.mesh);return false;}return true;});
