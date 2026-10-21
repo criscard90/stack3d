@@ -35,6 +35,7 @@ const ACHIEVEMENTS=[
 {id:'tnt_master',name:'TNT Master',desc:'Trigger 5 TNTs total',tier:2},
 {id:'frenzy_first',name:'Frenzy First',desc:'Complete a Frenzy run',tier:2},
 {id:'frenzy_10',name:'Frenzy 10',desc:'Score 10 in Frenzy',tier:2},
+];
 const ACHIEVEMENTS2=[
 {id:'score_75',name:'Score 75',desc:'Score 75 in a single run',tier:3},
 {id:'score_100',name:'Score 100',desc:'Score 100 in a single run',tier:3},
