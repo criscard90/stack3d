@@ -1188,7 +1188,7 @@ function init(){
  addEventListener('pointerdown',e=>{try{audioUnlock();}catch(_){}const inMenu=!!e.target.closest('#menu');if(!inMenu)$('menu').classList.remove('open');if(inMenu||e.target.closest('button')||e.target.closest('#shop')||e.target.closest('#gameover'))return;handlePlace();});
  addEventListener('keydown',e=>{try{audioUnlock();}catch(_){}if(e.code==='Space'){e.preventDefault();if(!frenzyActive&&!blastActive)handlePlace();}if(e.code==='KeyR')restartGame();if(e.code==='KeyM')toggleSound();if(e.code==='KeyB'&&!frenzyActive&&!blastActive)detonateBomb();if(frenzyActive){if(e.code==='Digit1')shootFrenzy('red');if(e.code==='Digit2')shootFrenzy('green');if(e.code==='Digit3')shootFrenzy('blue');if(e.code==='Digit4')shootFrenzy('yellow');}if(blastActive){if(e.code==='Digit1')explodeBlast('red');if(e.code==='Digit2')explodeBlast('green');if(e.code==='Digit3')explodeBlast('blue');if(e.code==='Digit4')explodeBlast('yellow');}});
  $('shop-btn').onclick=e=>{e.stopPropagation();sfxUI();$('menu').classList.remove('open');$('shop').style.display='flex';refreshHUD();};
-  $('ach-btn').onclick=e=>{e.stopPropagation();sfxUI();$('menu').classList.remove('open');openAchievements();};
+  const _achBtn=$('ach-btn');if(_achBtn)_achBtn.onclick=e=>{e.stopPropagation();sfxUI();$('menu').classList.remove('open');if(typeof openAchievements==='function')openAchievements();};
  $('go-shop').onclick=e=>{e.stopPropagation();sfxUI();$('shop').style.display='flex';refreshHUD();};
  $('shop-close').onclick=e=>{e.stopPropagation();sfxUI();$('shop').style.display='none';};
   const _achClose=$('ach-close');if(_achClose)_achClose.onclick=e=>{e.stopPropagation();closeAchievements();};
@@ -1323,4 +1323,4 @@ function clearVortex(){
   vortexCubes.forEach(c=>scene.remove(c));
   vortexCubes=[];
 }
-</script><div id="achievements" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:60;overflow:auto;padding:20px;"><div class="card" style="max-width:900px;margin:0 auto;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><h2 style="margin:0">Achievements <span id="ach-count"></span></h2><button class="btn" id="ach-close">Close</button></div><div id="ach-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;"></div></div></div></body></html>
+</script><div id="achievements" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:60;overflow:auto;padding:20px;"><div class="card" style="max-width:900px;margin:0 auto;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><h2 style="margin:0">Achievements <span id="ach-count"></span></h2><button class="btn" id="ach-close">Close</button></div><div id="ach-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;"></div></div></div><script src="achievements.js"></script></body></html>
