@@ -1191,7 +1191,7 @@ function init(){
   $('ach-btn').onclick=e=>{e.stopPropagation();sfxUI();$('menu').classList.remove('open');openAchievements();};
  $('go-shop').onclick=e=>{e.stopPropagation();sfxUI();$('shop').style.display='flex';refreshHUD();};
  $('shop-close').onclick=e=>{e.stopPropagation();sfxUI();$('shop').style.display='none';};
-  $('ach-close').onclick=e=>{e.stopPropagation();closeAchievements();};
+  const _achClose=$('ach-close');if(_achClose)_achClose.onclick=e=>{e.stopPropagation();closeAchievements();};
  $('restart-btn').onclick=e=>{e.stopPropagation();$('menu').classList.remove('open');restartGame();};
  $('go-retry').onclick=e=>{e.stopPropagation();restartGame();};
  $('menu-btn').onclick=e=>{e.stopPropagation();sfxUI();$('menu').classList.toggle('open');};

@@ -231,7 +231,11 @@ function checkAch(){
 function openAchievements(){
   const v=document.getElementById('achievements');
   if(v)v.style.display='flex';
+  const cb=document.getElementById('ach-close');
+  if(cb&&!cb._bound){cb._bound=true;cb.onclick=e=>{e.stopPropagation();closeAchievements();};}
   renderAchievements();
+  const cc=document.getElementById('ach-count');
+  if(cc)cc.textContent='('+unlockedAch.size+'/'+ACHIEVEMENTS.length+')';
 }
 function closeAchievements(){
   const v=document.getElementById('achievements');
