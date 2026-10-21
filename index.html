@@ -1258,26 +1258,32 @@ const _tap=document.getElementById('tap-to-play');if(_tap&&!gameStarted)_tap.cla
 let vortexActive=false;
 let vortexCubes=[];
 let vortexBaseY=0;
-function spawnVortex(baseY,nCount=50){
+let vortexTopY=0;
+function spawnVortex(baseY,nCount=80){
   if(vortexActive)return;
   vortexActive=true;
-  vortexBaseY=baseY;
+  vortexBaseY=0;
+  vortexTopY=baseY>0?baseY:20;
   vortexCubes=[];
-  const geometry=new THREE.BoxGeometry(0.3,0.3,0.3);
-  const material=new THREE.MeshStandardMaterial({vertexColors:THREE.VertexColors});
+  const geometry=new THREE.BoxGeometry(0.2,0.2,0.2);
   for(let i=0;i<nCount;i++){
-    const cube=new THREE.Mesh(geometry,new THREE.MeshBasicMaterial({color:new THREE.Color().setHSL(Math.random(),0.7,0.6)}));
+    const hue=Math.random();
+    const mat=new THREE.MeshBasicMaterial({color:new THREE.Color().setHSL(hue,0.8,0.6),transparent:true,opacity:1});
+    const cube=new THREE.Mesh(geometry,mat);
+    const angle=Math.random()*Math.PI*2;
+    const radius=2.5+Math.random()*1.5;
     cube.position.set(
-      (Math.random()-0.5)*3,
-      vortexBaseY-Math.random()*3,
-      (Math.random()-0.5)*3
+      Math.cos(angle)*radius,
+      vortexBaseY+Math.random()*2,
+      Math.sin(angle)*radius
     );
     cube.userData={
-      speedY:0.2+Math.random()*0.3,
-      spinSpeed:0.5+Math.random()*1.5,
-      life:1.0,
-      shrinkRate:0.01+Math.random()*0.01,
-      hueOffset:Math.random()*0.2
+      angle:angle,
+      radius:radius,
+      speedY:0.4+Math.random()*0.4,
+      spinSpeed:2+Math.random()*4,
+      orbitSpeed:1.5+Math.random()*2,
+      hue:hue
     };
     scene.add(cube);
     vortexCubes.push(cube);
@@ -1285,20 +1291,27 @@ function spawnVortex(baseY,nCount=50){
 }
 function updateVortex(delta){
   if(!vortexActive||!vortexCubes.length){return;}
-  vortexCubes.forEach(c=>{
+  const top=vortexTopY;
+  for(let i=vortexCubes.length-1;i>=0;i--){
+    const c=vortexCubes[i];
     const ud=c.userData;
+    ud.angle+=ud.orbitSpeed*delta;
+    c.position.x=Math.cos(ud.angle)*ud.radius;
+    c.position.z=Math.sin(ud.angle)*ud.radius;
     c.position.y+=ud.speedY*delta;
     c.rotation.x+=ud.spinSpeed*delta;
+    c.rotation.y+=ud.spinSpeed*delta;
     c.rotation.z+=ud.spinSpeed*delta;
-    // restringimento e fade verso l'alto
-    const t=Math.max(0,c.position.y-vortexBaseY)/20;
-    c.scale.set(1-t,1-t,1-t);
+    // fade+shrink verso la cima
+    const t=Math.max(0,(c.position.y-vortexBaseY)/(top-vortexBaseY));
+    const s=Math.max(0.01,1-t);
+    c.scale.set(s,s,s);
     c.material.opacity=Math.max(0,1-t);
-    if(c.position.y>vortexBaseY+30||c.material.opacity<=0){
+    if(c.position.y>=top||c.material.opacity<=0.01){
       scene.remove(c);
-      vortexCubes.splice(vortexCubes.indexOf(c),1);
+      vortexCubes.splice(i,1);
     }
-  });
+  }
   if(!vortexCubes.length){vortexActive=false;}
 }
 function clearVortex(){
