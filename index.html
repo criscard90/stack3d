@@ -9,7 +9,7 @@
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{margin:0;overflow:hidden;font-family:'Segoe UI',Tahoma,sans-serif;background:#1a1a2e;user-select:none;-webkit-user-select:none;color:#fff}
 @keyframes tapBlink{0%,100%{opacity:1}50%{opacity:0.2}}
-#tap-to-play{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-size:2rem;font-weight:900;letter-spacing:4px;text-transform:uppercase;color:#fff;text-shadow:0 0 20px rgba(255,255,255,.6),0 0 40px rgba(255,113,206,.4);pointer-events:none;z-index:30;animation:tapBlink 1s ease-in-out infinite;display:none}
+#tap-to-play{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-size:clamp(1.2rem,6vw,2rem);font-weight:900;letter-spacing:2px;text-transform:uppercase;color:#fff;text-align:center;width:90vw;max-width:420px;padding:0 8px;box-sizing:border-box;text-shadow:0 0 20px rgba(255,255,255,.6),0 0 40px rgba(255,113,206,.4);pointer-events:none;z-index:30;animation:tapBlink 1s ease-in-out infinite;display:none}
 #tap-to-play.show{display:block}
 body.slowmo canvas{filter:blur(1px) brightness(1.15);border:2px solid rgba(255,255,255,.35);box-shadow:0 0 24px rgba(255,255,255,.15)}
 body.slowmo{animation:slowmoPulse 2s ease-in-out infinite alternate}
@@ -584,39 +584,39 @@ let projectiles=[];
 // ===== SHOP: cataloghi (A estetici, B consumabili, C upgradabili, D cornici) =====
 const TRAILS={
  none:{name:'None',price:0},
- smoke:{name:'Smoke',price:30,colors:['#9aa0a6','#c7ccd1','#7c8288'],every:3,life:[18,34],power:.35,up:.55,g:.03,scale:.85},
- stardust:{name:'Stardust',price:45,colors:['#ffffff','#fff6b0','#c1f0f6','#e0b3ff'],every:2,life:[24,42],power:.5,up:.25,g:-.02,scale:.5},
- bubbles:{name:'Bubbles',price:40,colors:['#bfefff','#8fdfff','#ffffff'],every:3,life:[30,48],power:.3,up:.6,g:-.05,scale:.95},
- fire:{name:'Fire',price:55,colors:['#ff9500','#ff3b30','#ffe27a'],every:2,life:[14,26],power:.5,up:.85,g:-.05,scale:.7},
- neon:{name:'Blue Neon',price:55,colors:['#00c3ff','#7df9ff','#ffffff'],every:2,life:[20,32],power:.25,up:.2,g:0,scale:.6}
+ smoke:{name:'Smoke',price:300,colors:['#9aa0a6','#c7ccd1','#7c8288'],every:3,life:[18,34],power:.35,up:.55,g:.03,scale:.85},
+ stardust:{name:'Stardust',price:450,colors:['#ffffff','#fff6b0','#c1f0f6','#e0b3ff'],every:2,life:[24,42],power:.5,up:.25,g:-.02,scale:.5},
+ bubbles:{name:'Bubbles',price:400,colors:['#bfefff','#8fdfff','#ffffff'],every:3,life:[30,48],power:.3,up:.6,g:-.05,scale:.95},
+ fire:{name:'Fire',price:550,colors:['#ff9500','#ff3b30','#ffe27a'],every:2,life:[14,26],power:.5,up:.85,g:-.05,scale:.7},
+ neon:{name:'Blue Neon',price:550,colors:['#00c3ff','#7df9ff','#ffffff'],every:2,life:[20,32],power:.25,up:.2,g:0,scale:.6}
 };
 const CUTEFX={
  none:{name:'None',price:0},
- fireworks:{name:'Fireworks',price:60},
- pixel:{name:'Pixel art 8-bit',price:50},
- confetti:{name:'Confetti',price:40}
+ fireworks:{name:'Fireworks',price:600},
+ pixel:{name:'Pixel art 8-bit',price:500},
+ confetti:{name:'Confetti',price:400}
 };
 const AURAS={
  none:{name:'None',price:0},
- lightning:{name:'Electric lightning',price:85},
- gold:{name:'Golden aura',price:70},
- rings:{name:'Cosmic rings',price:90}
+ lightning:{name:'Electric lightning',price:850},
+ gold:{name:'Golden aura',price:700},
+ rings:{name:'Cosmic rings',price:900}
 };
 const FRAMES={
  none:{name:'None',price:0},
- gold:{name:'Golden border',price:50},
- neon:{name:'Neon border',price:60},
- animated:{name:'Animated border',price:100}
+ gold:{name:'Golden border',price:500},
+ neon:{name:'Neon border',price:600},
+ animated:{name:'Animated border',price:1000}
 };
 const CONSUMABLES={
- life:{name:'Second Chance ❤️',price:60,desc:'Saves a mistimed block from Game Over'},
- slow:{name:'Slowdown ⏳',price:40,desc:'-20% block speed for the first 15 turns'},
- magnet:{name:'Coin Magnet 🧲',price:50,desc:'+50% gold blocks for the game'}
+ life:{name:'Second Chance ❤️',price:600,desc:'Saves a mistimed block from Game Over'},
+ slow:{name:'Slowdown ⏳',price:400,desc:'-20% block speed for the first 15 turns'},
+ magnet:{name:'Coin Magnet 🧲',price:500,desc:'+50% gold blocks for the game'}
 };
 const UPGRADES={
- tol:{name:'Tolerance Width',price:50,max:3,desc:'+0.05 Perfect margin per level'},
- combo:{name:'Combo Multiplier',price:70,max:3,desc:'+1 coin per Perfect and +5 every 3, per level'},
- frenzy:{name:'Frenzy Timer',price:60,max:2,desc:'Frenzy lasts 7s (I) or 10s (II)'}
+ tol:{name:'Tolerance Width',price:500,max:3,desc:'+0.05 Perfect margin per level'},
+ combo:{name:'Combo Multiplier',price:700,max:3,desc:'+1 coin per Perfect and +5 every 3, per level'},
+ frenzy:{name:'Frenzy Timer',price:600,max:2,desc:'Frenzy lasts 7s (I) or 10s (II)'}
 };
 const BADGES=[{score:30,name:'Novice Architect'},{score:50,name:'Master of Precision'},{score:100,name:'Supreme Tightrope Walker'}];
 let equip={trail:'none',cut:'none',aura:'none',frame:'none'};
@@ -641,11 +641,11 @@ function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
 let currentSpecial=null,specialCountdown=5,blinkT=0;
 const THEMES={
  classic:{name:'Classic',price:0,bg:0x1a1a2e,amb:0xffffff,ambI:.6,dir:0xffffff,dirI:.6,fog:null,accent:'#ffffff',part:['#ffffff','#ffe27a']},
- vaporwave:{name:'Vaporwave Neon',price:50,bg:0x2b1055,amb:0xff71ce,ambI:.7,dir:0x01cdfe,dirI:.9,fog:0x2b1055,accent:'#ff71ce',part:['#ff71ce','#01cdfe','#fffb96']},
- cyberpunk:{name:'Cyberpunk',price:100,bg:0x0b0e1a,amb:0x00ffe7,ambI:.55,dir:0xff0055,dirI:.9,fog:0x0b0e1a,accent:'#00ffe7',part:['#00ffe7','#ff0055','#f9f002']},
- pastel:{name:'Pastel Sweet',price:75,bg:0x3a2b4d,amb:0xffd6e8,ambI:.8,dir:0xfff3b0,dirI:.7,fog:null,accent:'#ffd6e8',part:['#ffd6e8','#c1f0f6','#fff3b0']}
+ vaporwave:{name:'Vaporwave Neon',price:500,bg:0x2b1055,amb:0xff71ce,ambI:.7,dir:0x01cdfe,dirI:.9,fog:0x2b1055,accent:'#ff71ce',part:['#ff71ce','#01cdfe','#fffb96']},
+ cyberpunk:{name:'Cyberpunk',price:1000,bg:0x0b0e1a,amb:0x00ffe7,ambI:.55,dir:0xff0055,dirI:.9,fog:0x0b0e1a,accent:'#00ffe7',part:['#00ffe7','#ff0055','#f9f002']},
+ pastel:{name:'Pastel Sweet',price:750,bg:0x3a2b4d,amb:0xffd6e8,ambI:.8,dir:0xfff3b0,dirI:.7,fog:null,accent:'#ffd6e8',part:['#ffd6e8','#c1f0f6','#fff3b0']}
 };
-const SHAPES={cube:{name:'Cubes',price:0},cylinder:{name:'Cylinders',price:50},crystal:{name:'Crystals',price:100},stella:{name:'Stars',price:150}};
+const SHAPES={cube:{name:'Cubes',price:0},cylinder:{name:'Cylinders',price:500},crystal:{name:'Crystals',price:1000},stella:{name:'Stars',price:1500}};
 let themeId=localStorage.getItem('stack3d_theme')||'classic';
 let shapeId=localStorage.getItem('stack3d_shape')||'cube';
 let owned=[];try{owned=JSON.parse(localStorage.getItem('stack3d_owned')||'["classic","cube"]');}catch(e){owned=['classic','cube'];}
@@ -1017,6 +1017,7 @@ async function handlePlace(){
   if(placed==='magnet'&&!isPerfect){banner('Magnet: assisted attraction!');sfxMagnet();}
   if(placed==='tnt')await detonateTNT();
   score++;if(score>highScore){highScore=score;localStorage.setItem('stack_3d_highscore',highScore);}
+  try{achStats.runBlocks=(achStats.runBlocks||0)+1;achStats.runPerfects+=(isPerfect?1:0);achStats.runStreak=perfectStreak;achStats.maxTowerEver=Math.max(achStats.maxTowerEver||0,score);achStats.maxScoreEver=Math.max(achStats.maxScoreEver||0,score);achStats.totalCoinsEarned=Math.max(achStats.totalCoinsEarned||0,coins);if(placed==='tnt')achStats.totalTNT=(achStats.totalTNT||0)+1;achStats.maxSpeed=Math.max(achStats.maxSpeed||0,speed);if(typeof checkAch==='function')checkAch();}catch(e){}
   if(!frenzyUnlocked&&highScore>=FRENZY_MIN_SCORE){frenzyUnlocked=true;try{localStorage.setItem('stack3d_frenzy_unlocked','1');}catch(e){}unlockFrenzyAlert();}
    if(!blastUnlocked&&highScore>=BLAST_MIN_SCORE){blastUnlocked=true;try{localStorage.setItem('stack3d_blast_unlocked','1');}catch(e){}unlockBlastAlert();}
   if(!firstPlace&&runSlowLeft>0){runSlowLeft--;document.body.classList.toggle('slowmo',runSlowLeft>0);if(runSlowLeft===0){banner('⏳ Slowdown over',1500);document.body.classList.remove('slowmo');}}
@@ -1097,6 +1098,7 @@ function endGame(){
  const top=stack[stack.length-1];
  if(top){addOverhang(top.mesh.position.x,top.mesh.position.z,top.width,top.depth,top.mesh.material.color.clone());towerGroup.remove(top.mesh);}
  $('go-reason').textContent='You missed the block!';
+ try{if(typeof achStats!=='undefined'){achStats.runMisses=(achStats.runMisses||0)+1;achStats.totalMisses=(achStats.totalMisses||0)+1;if(typeof checkAch==='function')checkAch();}}catch(e){}
  $('go-stats').innerHTML='Score: <b>'+score+'</b> - Best: <b>'+highScore+'</b><br>coins '+coins+' - best streak x'+bestStreak;
  $('gameover').style.display='flex';
 }
@@ -1323,4 +1325,4 @@ function clearVortex(){
   vortexCubes.forEach(c=>scene.remove(c));
   vortexCubes=[];
 }
-</script><div id="achievements" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:60;overflow:auto;padding:20px;"><div class="card" style="max-width:1200px;margin:0 auto;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><h2 style="margin:0">Achievements <span id="ach-count"></span></h2><button class="btn" id="ach-close" onclick="closeAchievements();return false;">Close</button></div><div id="ach-grid" style="display:grid !important;grid-template-columns:repeat(4,1fr) !important;gap:8px;"></div></div></div><script src="achievements.js"></script></body></html>
+</script><div id="achievements" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:60;overflow:auto;padding:20px;"><div class="card" style="max-width:1200px;margin:0 auto;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><h2 style="margin:0">Achievements <span id="ach-count"></span></h2><button class="btn" id="ach-close" onclick="closeAchievements();return false;">Close</button></div><div id="ach-grid" style="display:grid !important;grid-template-columns:repeat(4,1fr) !important;gap:8px;"></div><div style="margin-top:12px;text-align:center;"><button class="btn" onclick="if(confirm('Reset all progress?')){localStorage.clear();location.reload();}">Reset All Progress</button></div></div></div><script src="achievements.js"></script></body></html>
