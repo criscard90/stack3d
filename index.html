@@ -8,6 +8,9 @@
 :root{--accent:#ff71ce}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{margin:0;overflow:hidden;font-family:'Segoe UI',Tahoma,sans-serif;background:#1a1a2e;user-select:none;-webkit-user-select:none;color:#fff}
+@keyframes tapBlink{0%,100%{opacity:1}50%{opacity:0.2}}
+#tap-to-play{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-size:2rem;font-weight:900;letter-spacing:4px;text-transform:uppercase;color:#fff;text-shadow:0 0 20px rgba(255,255,255,.6),0 0 40px rgba(255,113,206,.4);pointer-events:none;z-index:100;animation:tapBlink 1s ease-in-out infinite;display:none}
+#tap-to-play.show{display:block}
 body.slowmo canvas{filter:blur(1px) brightness(1.15);border:2px solid rgba(255,255,255,.35);box-shadow:0 0 24px rgba(255,255,255,.15)}
 body.slowmo{animation:slowmoPulse 2s ease-in-out infinite alternate}
 @keyframes slowmoPulse{from{background:#1a1a2e}to{background:#2a1a2e}}
@@ -92,6 +95,7 @@ canvas{display:block}
 
 </head>
 <body>
+<div id="tap-to-play">TAP TO PLAY</div>
 <div id="hud-left"><div class="pill" id="coins">🪙 0</div><div class="pill" id="perfect-pill">Perfect x0</div></div>
 <div id="ui"><div id="score-frame"><div id="score">0</div><div id="high-score">Best: 0</div></div><div id="badge"></div>
 <!-- HUD monete/perfect spostato in alto a sinistra -->
@@ -398,43 +402,46 @@ function sfxZap(bright){
 function sfxBlockExplode(big){
   if(!waCtx||!soundOn)return;
   const t=waCtx.currentTime;
-  // sub profondo
-  const os=waCtx.createOscillator();os.type='sine';
-  const subFreq=big?52:44;
-  os.frequency.setValueAtTime(subFreq,t);
-  os.frequency.exponentialRampToValueAtTime(28,t+0.3);
-  const gs=waCtx.createGain();
-  gs.gain.setValueAtTime(0,t);
-  gs.gain.linearRampToValueAtTime(big?0.3:0.2,t+0.02);
-  gs.gain.exponentialRampToValueAtTime(0.0001,t+0.5);
-  os.connect(gs);gs.connect(waSfxBus);
-  os.start(t);os.stop(t+0.6);
-  setTimeout(()=>{try{os.disconnect();gs.disconnect();}catch(e){}},700);
-  // rumore quantizzato (8-bit)
-  const on=waCtx.createOscillator();on.type='sawtooth';
-  on.frequency.setValueAtTime(880,t);
-  const gn=waCtx.createGain();
-  const crush=waCrushCurve(16);
-  const W=waCtx.createGain();
-  const M=waCtx.createGain();
-  on.connect(M);M.connect(W);
-  // apply bitcrush using the curve
-  const d=waCtx.createBufferSource();d.buffer=waCtx.createBuffer(1,1024,waCtx.sampleRate);
-  const dd=d.buffer.getChannelData(0);
-  for(let i=0;i<1024;i++)dd[i]=crush[i%1024];
-  d.start(t);
-  W.connect(waSfxBus);
-  setTimeout(()=>{try{d.disconnect();W.disconnect();M.disconnect();gn.disconnect();}catch(e){}},600);
-  // sweep ascendente
-  const o2=waCtx.createOscillator();o2.type='sawtooth';
-  o2.frequency.setValueAtTime(200,t);o2.frequency.exponentialRampToValueAtTime(440,t+0.4);
-  const g2=waCtx.createGain();g2.gain.setValueAtTime(0,t);g2.gain.linearRampToValueAtTime(big?0.15:0.1,t+0.01);g2.gain.exponentialRampToValueAtTime(0.0001,t+0.5);
-  o2.connect(g2);g2.connect(waSfxBus);
-  o2.start(t);o2.stop(t+0.6);
-  setTimeout(()=>{try{o2.disconnect();g2.disconnect();}catch(e){}},700);
+  const dur=big?0.35:0.22;
+  // NES-style explosion: pulse (square) + noise + triangle thud
+  // 1. Pulse channel: descending square wave (NES pulse)
+  const o=waCtx.createOscillator();o.type='square';
+  const startFreq=big?600:480;
+  o.frequency.setValueAtTime(startFreq,t);
+  o.frequency.exponentialRampToValueAtTime(80,t+dur);
+  const g=waCtx.createGain();
+  g.gain.setValueAtTime(big?0.22:0.16,t);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  o.connect(g);g.connect(waSfxBus);
+  o.start(t);o.stop(t+dur+0.05);
+  setTimeout(()=>{try{o.disconnect();g.disconnect();}catch(e){}},(dur+0.15)*1000);
+  // 2. Noise channel: bitcrushed noise burst (NES noise)
+  const crush=waCrushCurve(8);
+  const buf=waCtx.createBuffer(1,Math.floor(waCtx.sampleRate*dur),waCtx.sampleRate);
+  const data=buf.getChannelData(0);
+  for(let i=0;i<data.length;i++){
+    const pos=i/data.length;
+    data[i]=crush[Math.floor(Math.random()*1024)]*(1-pos);
+  }
+  const ns=waCtx.createBufferSource();ns.buffer=buf;
+  const ng=waCtx.createGain();
+  ng.gain.setValueAtTime(big?0.2:0.14,t);
+  ng.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  ns.connect(ng);ng.connect(waSfxBus);
+  ns.start(t);ns.stop(t+dur+0.05);
+  setTimeout(()=>{try{ns.disconnect();ng.disconnect();}catch(e){}},(dur+0.15)*1000);
+  // 3. Triangle thud: low but audible (NES triangle)
+  const tri=waCtx.createOscillator();tri.type='triangle';
+  const triFreq=big?180:140;
+  tri.frequency.setValueAtTime(triFreq,t);
+  tri.frequency.exponentialRampToValueAtTime(40,t+0.15);
+  const tg=waCtx.createGain();
+  tg.gain.setValueAtTime(big?0.25:0.18,t);
+  tg.gain.exponentialRampToValueAtTime(0.0001,t+0.2);
+  tri.connect(tg);tg.connect(waSfxBus);
+  tri.start(t);tri.stop(t+0.25);
+  setTimeout(()=>{try{tri.disconnect();tg.disconnect();}catch(e){}},300);
 }
- setTimeout(()=>{try{o.disconnect();g.disconnect();}catch(e){}},400);
- waNoise(t,0.12,0.1,waSfxBus,2500,'highpass');
 }
 
 /* magnet: arpeggio ascendente */
@@ -959,6 +966,7 @@ async function handlePlace(){
  const firstPlace=!gameStarted;
  let on=[];
  if(firstPlace){gameStarted=true;
+  const tapEl=document.getElementById('tap-to-play');if(tapEl)tapEl.classList.remove('show');
   // consumo 1 unita' per ogni consumabile armato, solo all'inizio della partita
   // (pending resta armato: vale per tutte le prossime partite finche' c'e' scorta)
   on=[];
@@ -1092,7 +1100,7 @@ function endGame(){
 }
 function restartGame(){
  stack.forEach(l=>towerGroup.remove(l.mesh));overhangs.forEach(o=>scene.remove(o.mesh));particles.forEach(p=>scene.remove(p.mesh));projectiles.forEach(p=>scene.remove(p.mesh));
- stack=[];overhangs=[];particles=[];projectiles=[];score=0;speed=.15;gameEnded=false;gameStarted=false;currentDirection='x';bombs=0;bombProgress=0;demolishing=false;demolishSeq++;runLife=false;runSlowLeft=0;runMagnet=false;document.body.classList.remove('slowmo');
+ stack=[];overhangs=[];particles=[];projectiles=[];score=0;speed=.15;gameEnded=false;gameStarted=false;currentDirection='x';bombs=0;const tapEl2=document.getElementById('tap-to-play');if(tapEl2)tapEl2.classList.add('show');bombProgress=0;demolishing=false;demolishSeq++;runLife=false;runSlowLeft=0;runMagnet=false;document.body.classList.remove('slowmo');
  frenzyActive=false;frenzyTimeLeft=0;frenzySinceCheck=0;frenzyHits=0;clearInterval(frenzyTimerId);clearInterval(frenzyFlashId);frenzyTimerId=frenzyFlashId=null;
   blastActive=false;blastTimeLeft=0;blastWave=0;blastSinceCheck=0;blastHits=0;blastUsed=false;clearInterval(blastTimerId);clearInterval(blastWaveId);clearInterval(blastFlashId);blastTimerId=blastWaveId=blastFlashId=null;setBlastButtonsDisabled(false);
  currentSpecial=null;specialCountdown=5;perfectStreak=0;
@@ -1236,6 +1244,7 @@ function animation(){
  renderer.render(scene,camera);
 }
 init();
+const _tap=document.getElementById('tap-to-play');if(_tap&&!gameStarted)_tap.classList.add('show');
 
 /* -------------------------------------------------------------------------
    vortice di cubi colorati (bomba/TNT/frenzy/color-blast)
