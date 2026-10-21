@@ -1,22 +1,26 @@
-# STACK3D — Contesto Progetto (20/10/2026, commit e27700d)
+# STACK3D — Contesto Progetto (21/10/2026)
 
-> Single-file game: `index.html` (1043 righe di JS inline). README minimale.
-> Stack: Three.js r128 via CDN + **Tone.js 14.7.77 via CDN**, nessun build. Persistenza `localStorage`.
-> Branch `main` sync con origin. Ultimo pull: `56e8504..e27700d` (12 commit).
+> Single-file game: `index.html` (1337 righe di JS inline). README minimale.
+> Stack: Three.js r128 via CDN + **Web Audio API nativa**, nessun build. Persistenza `localStorage`.
+> Branch `main` sync con origin.
 
-## 0. Audio: solo Tone.js (nessun fallback ZzFX)
-- **SFX**: Tone.js (pluck, perfect, coin, boom, zap, magnet, shoot, UI), nessun asset esterno.
-- **Musica**: Tone.js sequencer 16n (`toneSeq`) con pad+basso+batteria+arp.
-- **Due bus Tone distinti**: `toneBuses.music` (gain 0.9) e `toneBuses.sfx` (gain 1.0), entrambi → Compressor → Destination.
-- **Riverbero SFX separato** (`toneFx.sfxVerb`): `chime` (SFX) e `toneSwish()` usano il riverbero SFX, non quello della musica — altrimenti spegnere la musica tagliava il riverbero degli effetti e viceversa.
-- `musicOn` controlla **solo** la musica; `soundOn` controlla **solo** gli SFX. Non si muta mai `Tone.Destination.mute`.
-- `Tone.Destination.volume` = master volume utente (`stack3d_vol`).
-- Sequencer registrato **una sola volta** (`toneScheduled`), mai duplicato dopo pause/riprese.
-- `Tone.Transport` parte solo con `AudioContext` in stato `running` (`toneCtxRunning()`); il watcher lo riavvia se il context diventa running in ritardo (autoplay).
-- Non esiste più alcun fallback: solo Tone.js, niente doppia musica.
+## 0. Audio: Web Audio API (niente Tone.js, niente ZzFX)
+- **Motore leggero**: Tone.js e ZzFX rimossi del tutto. Tutto generato con `OscillatorNode`/`BufferSource` nativi.
+- **Architettura**: un solo `AudioContext` → 2 bus (`waMusicBus` gain 0.9 / `waSfxBus` gain 1.0) → `waComp` (DynamicsCompressor) → `waMaster` (gain utente) → destination.
+- **SFX**: procedurali (pluck, perfect, coin, boom, zap, magnet, shoot, UI), nessun asset esterno.
+- **Musica**: sequencer generativo 16n (`waTick`/`waScheduleStep`) con pad+basso+batteria+arp.
+- **Clock a lookahead**: `setInterval(25ms)` che schedula in anticipo (120ms) i passi con timestamp assoluti del `AudioContext`. Nessun nodo viene creato nel callback del timer.
+- **Guard anti-stuttering**: `if(waNextTime<now-0.001)waNextTime=now+0.02` in `waTick()` + `Math.max(when, waCtx.currentTime)` in tutti i punti di ingresso audio. Senza questo, quando il main thread si blocca (frame pesanti 3D) i nodi partivano nel passato → click/distorsione.
+- **Riverbero leggero** (`waVerbInit`): delay×2 + feedback + lowpass, wet 0.30, con send dal bus SFX al 22%. La convoluzione con impulse (era in `waVerbNode`) era dead code e costosa.
+- `musicOn` controlla **solo** la musica; `soundOn` controlla **solo** gli SFX. Il master non viene mai mutato, solo regolato in gain.
+- `waMaster.gain` = master volume utente (`stack3d_vol`).
+- Sequencer registrato **una sola volta** (`waSeqId`), mai duplicato dopo pause/riprese.
+- Il context parte solo dopo un gesto utente (`audioUnlock`); il watcher (`waWatchStart`, 300ms) riprende il sequencer se il context diventa running in ritardo.
+- Cambio modalità applicato **immediatamente** in `waTick()` (`musicMode!==waLastMode`), non dopo il watcher.
 - HUD: pillola `#music-pill` (modalità, etichetta, bpm, barre intensità); opacità legata **solo** a `musicOn` (spegnere gli SFX non la dimmina).
-- Modalità musicali (`TONE_MODES`): menu(chill 78) / game(groove 104) / frenzy(hyper 140) / danger(tensione 92).
-- Intensità dinamica `toneTarget()`: cresce con score, perfect streak e altezza torre; crossfade via `toneApply()`.
+- Modalità musicali (`AUDIO_MODES`): menu(chill 78) / game(groove 104) / frenzy(hyper 140) / danger(tensione 92).
+- Intensità dinamica `waTargetIntensity()`: cresce con score, perfect streak e altezza torre; interpolata in `waWatchStart`.
+- Limite voci pad: `MAX_PAD_VOICES=2` (il pad è la fonte di instabilità/stuttering).
 
 ## 1. Core gameplay
 - Torre box 3x3, `boxHeight=1`, base fissa. Moving oscilla x/z tra -20/+20.

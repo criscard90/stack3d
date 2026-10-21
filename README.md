@@ -3,9 +3,10 @@
 Gioco 3D "stack" in un singolo file: `index.html` (nessun build, nessun asset esterno oltre le CDN).
 
 ## Avvio
-Apri `index.html` nel browser. Serve una connessione internet per le CDN:
+Apri `index.html` nel browser. Serve una connessione internet solo per la CDN:
 - **Three.js r128** — rendering 3D
-- **Tone.js 14.7.77** — colonna sonora dinamica
+
+L'audio è **nativo Web Audio API**: nessuna libreria audio, nessun asset estterno, nessuna CDN audio.
 
 > La musica parte al **primo gesto utente** (click/tap), come impone la autoplay policy dei browser.
 
@@ -20,9 +21,10 @@ Apri `index.html` nel browser. Serve una connessione internet per le CDN:
 | `M` | Accendi/spegni gli SFX |
 
 ## Audio
-Un solo sistema, tutto Tone.js (nessun asset esterno, nessun fallback):
+Un solo sistema, **Web Audio API nativa** (nessuna libreria, nessun asset esterno, nessun fallback):
 
-- **Musica** — sequencer Tone.js a 16 note con pad, basso, batteria e arpeggio. Cambia modalità e intensità con lo stato di gioco:
+- **Architettura** — un solo `AudioContext` → 2 bus (`music` gain 0.9 / `sfx` gain 1.0) → `DynamicsCompressor` → master gain → destination.
+- **Musica** — sequencer generativo a 16 note con pad, basso, batteria e arpeggio, scheduled in anticipo sul clock del `AudioContext` (lookahead 120ms, tick 25ms). Cambia modalità e intensità con lo stato di gioco:
   | Modalità | Quando | Bpm |
   |---|---|---|
   | `menu` (chill) | Menu / game over | 78 |
@@ -31,9 +33,10 @@ Un solo sistema, tutto Tone.js (nessun asset esterno, nessun fallback):
   | `danger` (tensione) | Bomba / TNT | 92 |
   L'intensità cresce con score, perfect streak e altezza della torre.
 
-- **SFX** — Tone.js (pluck, perfect, coin, boom, zap, magnet, shoot, UI).
+- **SFX** — procedurali con `OscillatorNode`/`BufferSource` (pluck, perfect, coin, boom, zap, magnet, shoot, UI).
+- **Riverbero** — delay+feedback leggero, con send dal bus SFX al 22% (niente convolver: era la causa dei crash).
 
-I toggle sono indipendenti: **SFX** spegne solo gli effetti, **Musica** spegne solo la colonna sonora. Il volume master è in `Tone.Destination.volume`.
+I toggle sono indipendenti: **SFX** spegne solo gli effetti, **Musica** spegne solo la colonna sonora. Il volume master è in `waMaster.gain` (persistito in `stack3d_vol`).
 
 ## HUD
 Pillola `🎵 <modalità> · <stile> · <bpm>` in alto a sinistra, accanto a monete e perfect streak.
