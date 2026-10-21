@@ -19,7 +19,7 @@ Versione 1.0 — 20/10/2026 — da codice reale `index.html` (794 righe)
 - Camera ortografica `(-20*aspect,20*aspect,20,-20)`, pos `(20,20,20)` lookAt `(0,0,0)`. Poi `targetY=20+(len-2)*1`. Salita lerp .08, discesa snap dopo demolizioni. Shake offset random.
 - Luci Ambient + Directional (10,20,10), da tema.
 - Persistenza `localStorage`: `stack_3d_highscore`, `stack3d_coins/theme/shape/owned/beststreak/equip/inv/upg/pending/badges/frenzy_unlocked/blast_unlocked`.
-- Nessun backend/test (solo `navigator.vibrate`). Audio: ZzFX Micro inline + SFX procedurali + musica procedurale, toggle persistenti.
+- Nessun backend/test (solo `navigator.vibrate`). Audio: solo Tone.js (SFX procedurali + musica procedurale), toggle persistenti.
 
 ## 3. Controlli
 - Click/Tap = `handlePlace()`. Ignorato se demolishing/frenzy/blast/shop aperto/click su button/menu/shop/gameover. Se gameEnded → restart.

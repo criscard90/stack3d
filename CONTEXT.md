@@ -4,16 +4,16 @@
 > Stack: Three.js r128 via CDN + **Tone.js 14.7.77 via CDN**, nessun build. Persistenza `localStorage`.
 > Branch `main` sync con origin. Ultimo pull: `56e8504..e27700d` (12 commit).
 
-## 0. Audio: due sistemi paralleli (ZzFX + Tone.js)
-- **SFX**: ZzFX (procedurale, nessun asset) via `zzfxP()` + layer Tone.js per timbro/Tone.
-- **Musica**: Tone.js sequencer 16n (`toneSeq`) con pad+basso+batteria+arp; fallback ZzFX (`musicTick`) se Tone non è disponibile.
+## 0. Audio: solo Tone.js (nessun fallback ZzFX)
+- **SFX**: Tone.js (pluck, perfect, coin, boom, zap, magnet, shoot, UI), nessun asset esterno.
+- **Musica**: Tone.js sequencer 16n (`toneSeq`) con pad+basso+batteria+arp.
 - **Due bus Tone distinti**: `toneBuses.music` (gain 0.9) e `toneBuses.sfx` (gain 1.0), entrambi → Compressor → Destination.
 - **Riverbero SFX separato** (`toneFx.sfxVerb`): `chime` (SFX) e `toneSwish()` usano il riverbero SFX, non quello della musica — altrimenti spegnere la musica tagliava il riverbero degli effetti e viceversa.
 - `musicOn` controlla **solo** la musica; `soundOn` controlla **solo** gli SFX. Non si muta mai `Tone.Destination.mute`.
 - `Tone.Destination.volume` = master volume utente (`stack3d_vol`).
 - Sequencer registrato **una sola volta** (`toneScheduled`), mai duplicato dopo pause/riprese.
 - `Tone.Transport` parte solo con `AudioContext` in stato `running` (`toneCtxRunning()`); il watcher lo riavvia se il context diventa running in ritardo (autoplay).
-- Se Tone si inizializza dopo l'avvio del fallback ZzFX, il fallback viene **spento** (niente doppia musica).
+- Non esiste più alcun fallback: solo Tone.js, niente doppia musica.
 - HUD: pillola `#music-pill` (modalità, etichetta, bpm, barre intensità); opacità legata **solo** a `musicOn` (spegnere gli SFX non la dimmina).
 - Modalità musicali (`TONE_MODES`): menu(chill 78) / game(groove 104) / frenzy(hyper 140) / danger(tensione 92).
 - Intensità dinamica `toneTarget()`: cresce con score, perfect streak e altezza torre; crossfade via `toneApply()`.

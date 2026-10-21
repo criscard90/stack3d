@@ -20,7 +20,7 @@ Apri `index.html` nel browser. Serve una connessione internet per le CDN:
 | `M` | Accendi/spegni gli SFX |
 
 ## Audio
-Due sistemi paralleli, entrambi procedurali (nessun file audio):
+Un solo sistema, tutto Tone.js (nessun asset esterno, nessun fallback):
 
 - **Musica** — sequencer Tone.js a 16 note con pad, basso, batteria e arpeggio. Cambia modalità e intensità con lo stato di gioco:
   | Modalità | Quando | Bpm |
@@ -31,7 +31,7 @@ Due sistemi paralleli, entrambi procedurali (nessun file audio):
   | `danger` (tensione) | Bomba / TNT | 92 |
   L'intensità cresce con score, perfect streak e altezza della torre.
 
-- **SFX** — ZzFX + layer Tone.js (pluck, perfect, coin, boom, zap, magnet, shoot, UI).
+- **SFX** — Tone.js (pluck, perfect, coin, boom, zap, magnet, shoot, UI).
 
 I toggle sono indipendenti: **SFX** spegne solo gli effetti, **Musica** spegne solo la colonna sonora. Il volume master è in `Tone.Destination.volume`.
 
