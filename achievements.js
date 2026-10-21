@@ -243,5 +243,4 @@ function renderAchievements(){
   }).join('');
 }
 ACHIEVEMENTS.push(...ACHIEVEMENTS2);
-const ACHIEVEMENT_MAP={};
 ACHIEVEMENTS.forEach(a=>ACHIEVEMENT_MAP[a.id]=a);
