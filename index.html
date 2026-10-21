@@ -538,6 +538,7 @@ function refreshSoundBtn(){
 function toggleSound(){
  soundOn=!soundOn;
  try{localStorage.setItem('stack3d_sound',soundOn?'1':'0');}catch(e){}
+ if(typeof unlockAch==='function')unlockAch('sound_toggle');
  try{audioUnlock();}catch(e){}
  try{waMuteSync();}catch(e){}
  refreshSoundBtn();
@@ -779,7 +780,7 @@ function makeMesh(w,h,d,special){
  if(special){try{const eg=new THREE.EdgesGeometry(geo);const lc=special==='coin'?0xfff176:(special==='tnt'?0xffffff:0x002233);const lm=new THREE.LineBasicMaterial({color:lc});const lines=new THREE.LineSegments(eg,lm);lines.scale.set(1.02,1.02,1.02);m.add(lines);}catch(e){}}
  return m;
 }
-function applyTheme(id){themeId=id;const t=THEMES[id];scene.background=new THREE.Color(t.bg);scene.fog=t.fog?new THREE.Fog(t.fog,40,110):null;ambientLight.color.set(t.amb);ambientLight.intensity=t.ambI;dirLight.color.set(t.dir);dirLight.intensity=t.dirI;document.documentElement.style.setProperty('--accent',t.accent);saveMeta();}
+function applyTheme(id){themeId=id;const t=THEMES[id];scene.background=new THREE.Color(t.bg);scene.fog=t.fog?new THREE.Fog(t.fog,40,110):null;ambientLight.color.set(t.amb);ambientLight.intensity=t.ambI;dirLight.color.set(t.dir);dirLight.intensity=t.dirI;document.documentElement.style.setProperty('--accent',t.accent);saveMeta();if(typeof unlockAch==='function')unlockAch('theme_switch');}
 function addLayer(x,z,w,d,special){const y=boxHeight*stack.length;const mesh=makeMesh(w,boxHeight,d,special);mesh.position.set(x,y,z);towerGroup.add(mesh);stack.push({mesh:mesh,width:w,depth:d,x:x,z:z,special:special||null});}
 const partGeo=new THREE.BoxGeometry(.22,.22,.22);
 function pushParticle(pos,o){
@@ -973,6 +974,7 @@ async function handlePlace(){
   // (pending resta armato: vale per tutte le prossime partite finche' c'e' scorta)
   on=[];
   ['life','slow','magnet'].forEach(k=>{if(pending[k]){if(inv[k]>0){inv[k]--;on.push(k);}else pending[k]=false;}});
+  if(on.length&&typeof unlockAch==='function')unlockAch('powerup_active');
   if(on.length){
    runLife=on.indexOf('life')>=0;runMagnet=on.indexOf('magnet')>=0;runSlowLeft=on.indexOf('slow')>=0?15:0;document.body.classList.toggle('slowmo',runSlowLeft>0);
    saveMeta();
@@ -1104,7 +1106,7 @@ function endGame(){
 }
 function restartGame(){
  stack.forEach(l=>towerGroup.remove(l.mesh));overhangs.forEach(o=>scene.remove(o.mesh));particles.forEach(p=>scene.remove(p.mesh));projectiles.forEach(p=>scene.remove(p.mesh));
- stack=[];overhangs=[];particles=[];projectiles=[];score=0;speed=.15;gameEnded=false;gameStarted=false;currentDirection='x';bombs=0;const tapEl2=document.getElementById('tap-to-play');if(tapEl2)tapEl2.classList.add('show');bombProgress=0;demolishing=false;demolishSeq++;runLife=false;runSlowLeft=0;runMagnet=false;document.body.classList.remove('slowmo');
+ stack=[];overhangs=[];particles=[];projectiles=[];score=0;speed=.15;gameEnded=false;gameStarted=false;currentDirection='x';bombs=0;const tapEl2=document.getElementById('tap-to-play');if(tapEl2)tapEl2.classList.add('show');bombProgress=0;demolishing=false;demolishSeq++;runLife=false;runSlowLeft=0;runMagnet=false;document.body.classList.remove('slowmo');if(typeof unlockAch==='function')unlockAch('restart');
  frenzyActive=false;frenzyTimeLeft=0;frenzySinceCheck=0;frenzyHits=0;clearInterval(frenzyTimerId);clearInterval(frenzyFlashId);frenzyTimerId=frenzyFlashId=null;
   blastActive=false;blastTimeLeft=0;blastWave=0;blastSinceCheck=0;blastHits=0;blastUsed=false;clearInterval(blastTimerId);clearInterval(blastWaveId);clearInterval(blastFlashId);blastTimerId=blastWaveId=blastFlashId=null;setBlastButtonsDisabled(false);
  currentSpecial=null;specialCountdown=5;perfectStreak=0;
@@ -1189,7 +1191,7 @@ function init(){
  addEventListener('resize',()=>{const a=innerWidth/innerHeight,dd=20;camera.left=-dd*a;camera.right=dd*a;camera.top=dd;camera.bottom=-dd;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
  addEventListener('pointerdown',e=>{try{audioUnlock();}catch(_){}const inMenu=!!e.target.closest('#menu');if(!inMenu)$('menu').classList.remove('open');if(inMenu||e.target.closest('button')||e.target.closest('#shop')||e.target.closest('#gameover')||e.target.closest('#achievements'))return;handlePlace();});
  addEventListener('keydown',e=>{try{audioUnlock();}catch(_){}if(e.code==='Space'){e.preventDefault();if(!frenzyActive&&!blastActive)handlePlace();}if(e.code==='KeyR')restartGame();if(e.code==='KeyM')toggleSound();if(e.code==='KeyB'&&!frenzyActive&&!blastActive)detonateBomb();if(frenzyActive){if(e.code==='Digit1')shootFrenzy('red');if(e.code==='Digit2')shootFrenzy('green');if(e.code==='Digit3')shootFrenzy('blue');if(e.code==='Digit4')shootFrenzy('yellow');}if(blastActive){if(e.code==='Digit1')explodeBlast('red');if(e.code==='Digit2')explodeBlast('green');if(e.code==='Digit3')explodeBlast('blue');if(e.code==='Digit4')explodeBlast('yellow');}});
- $('shop-btn').onclick=e=>{e.stopPropagation();sfxUI();$('menu').classList.remove('open');$('shop').style.display='flex';refreshHUD();};
+ $('shop-btn').onclick=e=>{e.stopPropagation();sfxUI();$('menu').classList.remove('open');$('shop').style.display='flex';refreshHUD();if(typeof unlockAch==='function')unlockAch('shop_open');};
   const _achBtn=$('ach-btn');if(_achBtn)_achBtn.onclick=e=>{e.stopPropagation();sfxUI();$('menu').classList.remove('open');if(typeof openAchievements==='function')openAchievements();};
  $('go-shop').onclick=e=>{e.stopPropagation();sfxUI();$('shop').style.display='flex';refreshHUD();};
  $('shop-close').onclick=e=>{e.stopPropagation();sfxUI();$('shop').style.display='none';};
