@@ -224,6 +224,8 @@ function checkAch(){
   if(s.totalTNT>=50)unlockAch('tnts_50');
   if(s.totalFrenzyHits>=100)unlockAch('frenzy_100');
   if(s.totalBlastHits>=100)unlockAch('blast_100');
+  if(s.maxScoreEver>=50)unlockAch('frenzy_unlock');
+  if(s.maxScoreEver>=75)unlockAch('blast_unlock');
 }
 function openAchievements(){
   const v=document.getElementById('achievements');
