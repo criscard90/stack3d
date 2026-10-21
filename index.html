@@ -941,7 +941,7 @@ function explodeBlast(color){
  }
  blastHits+=removed;score+=removed;coins+=removed*2;
  if(score>highScore){highScore=score;localStorage.setItem('stack_3d_highscore',highScore);}
- flash(.35,FRENZY_CSS[color]);shake(.35,.3);vibrate(40);sfxBlast();sfxBlockExplode(true);spawnVortex(stack[stack.length-1]?stack[stack.length-1].mesh.position.y:0);
+ flash(.35,FRENZY_CSS[color]);shake(.35,.3);vibrate(40);sfxBlast();sfxBlockExplode(true);spawnVortex(stack[stack.length-1]?stack[stack.length-1].mesh.position.y:0,80,1.5);
  for(let i=0;i<stack.length;i++){stack[i].mesh.position.y=boxHeight*i;}
  refreshHUD();updateBlastHUD();
  endBlast('💥 +'+removed+' '+color.toUpperCase()+'! Color Blast over!');
@@ -1046,7 +1046,7 @@ async function detonateBomb(){
  demolishing=true;const mySeq=++demolishSeq;
  bombs--;refreshHUD();
  const total=Math.min(BOMB_POWER,(stack.length-1)-2);
- banner('-'+total+' blocks');flash(.7,'#ff9500');shake(1.2,.7);vibrate([80,50,80]);sfxBomb();sfxBlockExplode(true);spawnVortex(stack[stack.length-1]?stack[stack.length-1].mesh.position.y:0);
+ banner('-'+total+' blocks');flash(.7,'#ff9500');shake(1.2,.7);vibrate([80,50,80]);sfxBomb();sfxBlockExplode(true);spawnVortex(stack[stack.length-1]?stack[stack.length-1].mesh.position.y:0,80,total*0.13);
  const wp=new THREE.Vector3();stack[stack.length-1].mesh.getWorldPosition(wp);spawnBurst(wp,['#ff9500','#ff3b30','#ffe27a','#555555'],60,8);
  // distruzione a cascata: un pezzo alla volta dall'alto verso il basso (conserva le 2 basi); il pezzo in movimento resta dov'e'
  let removed=0;
@@ -1070,7 +1070,7 @@ async function detonateTNT(){
  const below=Math.min(TNT_POWER,stack.length-3);
  if(below<=0)return 0;
  demolishing=true;const mySeq=++demolishSeq;
- banner('-'+below+' blocks');flash(.7,'#ff9500');shake(1.2,.7);vibrate([80,50,80]);sfxTNT();sfxBlockExplode(true);spawnVortex(stack[stack.length-1]?stack[stack.length-1].mesh.position.y:0);
+ banner('-'+below+' blocks');flash(.7,'#ff9500');shake(1.2,.7);vibrate([80,50,80]);sfxTNT();sfxBlockExplode(true);
  const wp=new THREE.Vector3();stack[stack.length-1].mesh.getWorldPosition(wp);spawnBurst(wp,['#ff9500','#ff3b30','#ffe27a','#555555'],60,8);
  // la TNT stessa esplode (non conteggiata), poi distruzione a cascata dei pezzi sotto: uno alla volta dall'alto verso il basso, identica alla bomba (si tocca solo la Y, mai X/Z: niente slittamenti)
  const tnt=stack.pop();towerGroup.remove(tnt.mesh);
@@ -1259,12 +1259,14 @@ let vortexActive=false;
 let vortexCubes=[];
 let vortexBaseY=0;
 let vortexTopY=0;
-function spawnVortex(baseY,nCount=80){
+let vortexDuration=1.5;
+function spawnVortex(baseY,nCount=80,duration=1.5){
   if(vortexActive)return;
   vortexActive=true;
   vortexBaseY=0;
   vortexTopY=baseY>0?baseY:20;
   vortexCubes=[];
+  vortexDuration=duration;
   const geometry=new THREE.BoxGeometry(0.45,0.45,0.45);
   for(let i=0;i<nCount;i++){
     const hue=Math.random();
@@ -1280,7 +1282,7 @@ function spawnVortex(baseY,nCount=80){
     cube.userData={
       angle:angle,
       radius:radius,
-      speedY:0.4+Math.random()*0.4,
+      speedY:(vortexTopY-vortexBaseY)/duration*(0.85+Math.random()*0.3),
       spinSpeed:2+Math.random()*4,
       orbitSpeed:1.5+Math.random()*2,
       hue:hue
