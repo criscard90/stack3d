@@ -223,6 +223,7 @@ function waNoiseBuffer(){
  const d=b.getChannelData(0);
  for(let i=0;i<len;i++)d[i]=Math.random()*2-1;
  waNoiseBuf=b;return b;
+}
 /* curva di quantizzazione (bitcrush): dà il timbro "8-bit" ai suoni percussivi/esplosivi.
    Restituisce un Float32Array riutilizzabile (allocazione unica). */
 let waCrushCurve = (steps)=>{
@@ -230,7 +231,6 @@ let waCrushCurve = (steps)=>{
   const c=new Float32Array(1024);
   for(let i=0;i<1024;i++){const x=(i/1023)*2-1;c[i]=Math.round(x*n)/n;}
   return c;
-}
 }
 
 /* --- riverbero leggero (delay + feedback, niente convoluzione: costosa e pesante) ---
