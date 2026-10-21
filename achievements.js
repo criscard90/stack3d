@@ -1,4 +1,18 @@
-// === ACHIEVEMENTS SYSTEM ===
+// === ACHIEVEMENTS SYSTEM (minimal) ===
+const ACHIEVEMENTS=[];
+const ACHIEVEMENT_MAP={};
+let achStats={totalPerfects:0,totalMisses:0,totalBlocks:0,totalBombs:0,totalTNT:0,totalFrenzyHits:0,totalBlastHits:0,totalCoinsEarned:0,maxSpeed:0,maxStreakEver:0,maxTowerEver:0,maxScoreEver:0,frenzyMaxStreak:0,blastCount:0,frenzyCount:0,themesOwned:0,shapesOwned:0,trailsOwned:0,cutsOwned:0,aurasOwned:0,framesOwned:0,upgradesMaxed:0,heartsUsed:0,magnetsUsed:0,slowsUsed:0,runPerfects:0,runMisses:0,runBlocks:0,runStreak:0};
+let unlockedAch=new Set();
+try{const s=localStorage.getItem('stack3d_achievements');if(s)unlockedAch=new Set(JSON.parse(s));}catch(e){}
+let achToastQueue=[];let achToastActive=false;
+function saveAch(){try{localStorage.setItem('stack3d_achievements',JSON.stringify([...unlockedAch]));}catch(e){}}
+function showAchToast(ach){achToastQueue.push(ach);if(!achToastActive)processAchToast();}
+function processAchToast(){if(!achToastQueue.length){achToastActive=false;return;}achToastActive=true;const ach=achToastQueue.shift();const el=document.createElement('div');el.className='ach-toast';el.innerHTML='<div class="ach-toast-name">🏆 '+ach.name+'</div><div class="ach-toast-desc">'+ach.desc+'</div>';document.body.appendChild(el);setTimeout(()=>{el.classList.add('ach-toast-out');setTimeout(()=>{el.remove();processAchToast();},400);},3000);}
+function unlockAch(id){if(unlockedAch.has(id))return;const ach=ACHIEVEMENT_MAP[id];if(!ach)return;unlockedAch.add(id);saveAch();showAchToast(ach);}
+function checkAch(){}
+function openAchievements(){const v=document.getElementById('achievements');if(v)v.style.display='flex';renderAchievements();const cc=document.getElementById('ach-count');if(cc)cc.textContent='('+unlockedAch.size+'/'+ACHIEVEMENTS.length+')';const cb=document.getElementById('ach-close');if(cb&&!cb._bound){cb._bound=true;cb.onclick=e=>{e.stopPropagation();closeAchievements();};}}
+function closeAchievements(){const v=document.getElementById('achievements');if(v)v.style.display='none';}
+function renderAchievements(){const g=document.getElementById('ach-grid');if(!g)return;g.innerHTML=ACHIEVEMENTS.map(a=>{const u=unlockedAch.has(a.id);return '<div class="ach-card '+(u?'unlocked':'locked')+'"><div class="ach-icon">'+(u?'🏆':'🔒')+'</div><div class="ach-name">'+a.name+'</div><div class="ach-desc">'+a.desc+'</div></div>';}).join('');}
 const ACHIEVEMENTS=[
 {id:'first_tap',name:'First Tap',desc:'Place your first block',tier:1},
 {id:'first_perfect',name:'Perfect Starter',desc:'Get your first Perfect',tier:1},
@@ -134,7 +148,6 @@ function unlockAch(id){
   showAchToast(ach);
   if(unlockedAch.size===ACHIEVEMENTS.length)unlockAch('all_achievements');
 }
-{id:'blast_100',name:'Blast 100',desc:'Blast 100 blocks in one blast',tier:5}];
 ACHIEVEMENTS.push(...ACHIEVEMENTS2);
 const ACHIEVEMENT_MAP={};
 ACHIEVEMENTS.forEach(a=>ACHIEVEMENT_MAP[a.id]=a);
