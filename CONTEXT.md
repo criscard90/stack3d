@@ -4,23 +4,21 @@
 > Stack: Three.js r128 via CDN + **Web Audio API nativa**, nessun build. Persistenza `localStorage`.
 > Branch `main` sync con origin.
 
-## 0. Audio: Web Audio API (niente Tone.js, niente ZzFX)
-- **Motore leggero**: Tone.js e ZzFX rimossi del tutto. Tutto generato con `OscillatorNode`/`BufferSource` nativi.
-- **Architettura**: un solo `AudioContext` → 2 bus (`waMusicBus` gain 0.9 / `waSfxBus` gain 1.0) → `waComp` (DynamicsCompressor) → `waMaster` (gain utente) → destination.
-- **SFX**: procedurali (pluck, perfect, coin, boom, zap, magnet, shoot, UI), nessun asset esterno.
-- **Musica**: sequencer generativo 16n (`waTick`/`waScheduleStep`) con pad+basso+batteria+arp.
-- **Clock a lookahead**: `setInterval(25ms)` che schedula in anticipo (120ms) i passi con timestamp assoluti del `AudioContext`. Nessun nodo viene creato nel callback del timer.
-- **Guard anti-stuttering**: `if(waNextTime<now-0.001)waNextTime=now+0.02` in `waTick()` + `Math.max(when, waCtx.currentTime)` in tutti i punti di ingresso audio. Senza questo, quando il main thread si blocca (frame pesanti 3D) i nodi partivano nel passato → click/distorsione.
-- **Riverbero leggero** (`waVerbInit`): delay×2 + feedback + lowpass, wet 0.30, con send dal bus SFX al 22%. La convoluzione con impulse (era in `waVerbNode`) era dead code e costosa.
-- `musicOn` controlla **solo** la musica; `soundOn` controlla **solo** gli SFX. Il master non viene mai mutato, solo regolato in gain.
+## 0. Audio: Web Audio API (SFX) + MP3 in loop (musica)
+- **Motore leggero**: Tone.js e ZzFX rimossi del tutto. Gli SFX sono generati con `OscillatorNode`/`BufferSource` nativi.
+- **Architettura**: un solo `AudioContext` → bus `waSfxBus` gain 1.0 → `waComp` (DynamicsCompressor) → `waMaster` (gain utente) → destination. **Il bus musica non esiste più**: la musica è un `<audio>` HTML5 standard.
+- **Musica**: file `8bit Stack Tower.mp3` (in root del repo) in loop tramite `<audio id="bgm" src="8bit%20Stack%20Tower.mp3" loop preload="auto">`. Il nome è URL-encoded per gli spazi.
+- **Nessun sequencer generativo**: rimossi `AUDIO_MODES`, `waTick`/`waScheduleStep`, `waPadChord`/`waBassNote`/drummer, `waMusicBus`, `waMusicStart`/`waMusicStop`, `waWatchStart`, `musicMode` e le modalità musicali (menu/game/frenzy/danger). La musica non cambia più con lo stato di gioco.
+- **Mix**: volume MP3 = `waVol * WA_BGM_GAIN` (0.55) → il master Web Audio resta per gli SFX. `waSetVol`/`waMuteSync` chiamano `waBgmSync()` per tenere il volume allineato.
+- **SFX**: procedurali (pluck, perfect, coin, boom, zap, magnet, shoot, UI), nessun asset esterno. Il riverbero (`waVerbInit`) e il compressore restano invariati.
+- `musicOn` controlla **solo** la musica (start/pause dell'`<audio>`); `soundOn` controlla **solo** gli SFX. Il master non viene mai mutato, solo regolato in gain.
 - `waMaster.gain` = master volume utente (`stack3d_vol`).
-- Sequencer registrato **una sola volta** (`waSeqId`), mai duplicato dopo pause/riprese.
-- Il context parte solo dopo un gesto utente (`audioUnlock`); il watcher (`waWatchStart`, 300ms) riprende il sequencer se il context diventa running in ritardo.
-- Cambio modalità applicato **immediatamente** in `waTick()` (`musicMode!==waLastMode`), non dopo il watcher.
+- Il playback parte al **primo gesto utente** (`audioUnlock` → `waBgmPlay()`), come impone l'autoplay policy. `waBgmPlay`/`waBgmStop`/`waBgmSync`/`waBgmInit` gestiscono l'`<audio>`; il `play()` è avvolto in try/catch per non generare rejection non gestite.
+- La musica non dipende dal Web Audio: `audioUnlock()` avvia l'MP3 **prima** di verificare la disponibilità di `AudioContext`, quindi parte anche se il context fallisce.
+- Toggle Musica: `toggleMusic()` → `waBgmStop()` (OFF) oppure `audioUnlock()` + `waBgmPlay()` (ON).
+- Loop nativo dell'elemento `<audio>`: niente scheduling, niente guard anti-stuttering, niente voice cap.
 - HUD: in alto a sinistra solo monete e perfect streak (la pillola musica `#music-pill` è stata rimossa).
-- Modalità musicali (`AUDIO_MODES`): menu(chill 78) / game(groove 104) / frenzy(hyper 140) / danger(tensione 92).
-- Intensità dinamica `waTargetIntensity()`: cresce con score, perfect streak e altezza torre; interpolata in `waWatchStart`.
-- Limite voci pad: `MAX_PAD_VOICES=2` (il pad è la fonte di instabilità/stuttering).
+- Modalità musicali (`AUDIO_MODES`): **rimosse** (menu/game/frenzy/danger) — la musica è un unico brano in loop.
 
 ## 1. Core gameplay
 - Torre box 3x3, `boxHeight=1`, base fissa. Moving oscilla x/z tra -20/+20.
@@ -71,12 +69,14 @@
 e48fb25 shop espanso; f523f1a shop a tab; 76a9b36 margine; 7292e6a colori sezioni; a70f4dc stella; f5684cf nebbiolina gold; 8079ce5 frenzy da 50; ab5528a forma live; 08a80c7 frenzy permanente; 7acd307 bottoni; 401763f consumabili persistenti; e27700d chip subito dopo Attiva.
 
 ## 8. Debiti / note
-- Tutto in un file, nessun test automatici nel repo. runMagnet solo flag HUD (effetto globale non applicato?). bridge/ solo infra Cline, non di gioco. README minimale.
+- Tutto in un file. bridge/ solo infra Cline, non di gioco. README minimale.
+- **Test**: `test_bgm.js` (node, senza dipendenze) gira Chrome headless via CDP con un server statico temporaneo e verifica: `<audio id="bgm">` presente, sblocco al primo gesto, avanzamento del playback, toggle Musica OFF/ON, volume master applicato all'MP3, SFX ancora funzionanti, wrap del loop, persistenza di `stack3d_music=0`, reload, assenza di residui procedurali, nessun errore in console. Uso: `node test_bgm.js`.
 - Tuning: BOMB_POWER=10, TNT_POWER=2, FRENZY_TIME=5, SPEED_INC=0.005.
-- **Bug 7 (fixato)**: in `handlePlace()` la `const on=[]` era dichiarata dentro `if(firstPlace){...}` ma letta fuori → `ReferenceError: on is not defined` al primo tap, che abortiva il piazzamento del primo blocco di ogni partita. Ora `let on=[]` hoisted e `if(firstPlace)musicMode='game'`.
+- **Bug 7 (fixato)**: in `handlePlace()` la `const on=[]` era dichiarata dentro `if(firstPlace){...}` ma letta fuori → `ReferenceError: on is not defined` al primo tap, che abortiva il piazzamento del primo blocco di ogni partita. Ora `let on=[]` hoisted. La riga `if(firstPlace)musicMode='game'` è stata rimossa insieme al sequencer.
 - Verifica audio: harness jsdom in `/tmp/s3dtest` (stub Three/Tone/WebAudio) — 74 test (funzionali, toggle, isolamento bus, HUD, stress) tutti verdi. Non incluso nel repo.
 
 ## 9. Run
 Aprire index.html (CDN internet). Click piazzare, Menu per shop, bottone bomba, frenzy auto dopo 50.
-Primo gesto utente necessario per sbloccare l'AudioContext (autoplay policy): la musica parte al primo tocco/click.
+Primo gesto utente necessario (autoplay policy): la musica MP3 parte al primo tocco/click, gli SFX richiedono l'`AudioContext` che si sblocca con lo stesso gesto.
+Nota: il file `8bit Stack Tower.mp3` (2.8 MB) è un asset del repo e va servito come `audio/mpeg` (se aperto via `file://` alcuni browser lo caricano comunque, ma è consigliato servire via HTTP).
 

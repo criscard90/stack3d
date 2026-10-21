@@ -125,38 +125,25 @@ canvas{display:block}
  </div>
  <div class="shop-foot"><button class="btn" id="shop-close" style="width:100%">Close</button></div>
 </div></div>
+<audio id="bgm" src="8bit%20Stack%20Tower.mp3" loop preload="auto"></audio>
 <script>
 /* STACK 3D punti 3..7 GDD */
-/* ===== COMPARTO SONORO: Web Audio API (niente Tone.js, niente ZzFX) ===== */
-/* Motore leggero: un solo AudioContext, 2 bus (musica/SFX) -> compressore -> master.
-   Tutti i suoni sono generati con OscillatorNode/BufferSource, nessuna libreria esterna. */
+/* ===== COMPARTO SONORO: Web Audio API (SFX) + MP3 in loop (musica) ===== */
+/* Motore leggero: un solo AudioContext, bus SFX -> compressore -> master.
+   Gli SFX sono generati con OscillatorNode/BufferSource, nessuna libreria esterna.
+   La colonna sonora e' l'elemento <audio id="bgm"> (8bit Stack Tower.mp3) in loop. */
 let soundOn=true,musicOn=true;
 try{if(localStorage.getItem('stack3d_sound')==='0')soundOn=false;}catch(e){}
 try{if(localStorage.getItem('stack3d_music')==='0')musicOn=false;}catch(e){}
 
 /* --- stato --- */
-let waCtx=null,waMaster=null,waComp=null,waMusicBus=null,waSfxBus=null;
+let waCtx=null,waMaster=null,waComp=null,waSfxBus=null;
 let waReady=false,waStarting=false;
 let waVol=0.9;
 try{waVol=parseFloat(localStorage.getItem('stack3d_vol')||'0.9')||0.9;}catch(e){}
-let musicMode='menu';            /* impostata dal gioco (frenzy/game/danger/menu) */
-let waLastMode='__none__';
-let waIntensity=0.25,waTargetInt=0.25;
-let waMelodyIdx=4;
-let waSeqId=null,waWatchId=null;
-let waPadVoices=[];
 let waNoiseBuf=null;
-const MAX_PAD_VOICES=2;
-const WA_LOOKAHEAD=0.12;         /* secondi di anticipo scheduling */
-const WA_TICK_MS=25;             /* frequenza del clock del sequencer */
-
-/* --- configurazione per modalita' musicale --- */
-const AUDIO_MODES={
- menu:{label:'chill',bpm:78,chords:[[57,60,64,67],[53,57,60,65],[48,55,60,64],[55,59,62,64]],roots:[33,29,36,31],scale:[0,3,5,7,10,12,15,17,19,22,24],drums:'half',padGain:0.30,bassGain:0.34,arpProb:0.18,hatProb:0.35,cutoff:900,bassCut:300},
- game:{label:'groove',bpm:104,chords:[[48,55,60,64],[43,55,59,62],[45,57,60,64],[41,53,57,60]],roots:[36,31,33,29],scale:[0,2,4,7,9,12,14,16,19,21,24],drums:'pop',padGain:0.34,bassGain:0.40,arpProb:0.32,hatProb:0.6,cutoff:1600,bassCut:340},
- frenzy:{label:'hyper',bpm:140,chords:[[57,60,64,69],[53,57,60,65],[48,55,60,64],[55,59,62,67]],roots:[33,29,36,31],scale:[0,2,3,5,7,8,10,12,14,15,17],drums:'edm',padGain:0.38,bassGain:0.46,arpProb:0.62,hatProb:0.9,cutoff:4200,bassCut:900},
- danger:{label:'tension',bpm:92,chords:[[40,47,52,56],[38,45,52,55],[40,46,52,53],[35,47,50,54]],roots:[28,26,28,23],scale:[0,1,5,6,7,8,12,13],drums:'heart',padGain:0.28,bassGain:0.36,arpProb:0.2,hatProb:0.3,cutoff:650,bassCut:180}
-};
+let waBgm=null;                  /* elemento <audio>: colonna sonora MP3 in loop */
+const WA_BGM_GAIN=0.55;          /* mix della musica rispetto agli SFX */
 
 /* --- helper base --- */
 function midiToFreq(m){return 440*Math.pow(2,(m-69)/12);}
@@ -173,9 +160,8 @@ function waInit(){
   waMaster.gain.value=Math.max(0.001,waVol);
   waComp=waCtx.createDynamicsCompressor();
   waComp.threshold.value=-20;waComp.ratio.value=4;waComp.knee.value=10;
-  waMusicBus=waCtx.createGain();waMusicBus.gain.value=musicOn?0.9:0;
   waSfxBus=waCtx.createGain();waSfxBus.gain.value=soundOn?1:0;
-  waMusicBus.connect(waComp);waSfxBus.connect(waComp);waComp.connect(waMaster);
+  waSfxBus.connect(waComp);waComp.connect(waMaster);
   waMaster.connect(waCtx.destination);
   waVerbInit();
   waReady=true;waStarting=false;
@@ -190,12 +176,42 @@ function waSetVol(v){
  waVol=Math.min(1,Math.max(0,v));
  try{localStorage.setItem('stack3d_vol',String(waVol));}catch(e){}
  if(waMaster)waMaster.gain.value=Math.max(0.001,waVol);
+ try{waBgmSync();}catch(e){}
 }
 function waMuteSync(){
- try{if(waMusicBus)waMusicBus.gain.value=musicOn?0.9:0;}catch(e){}
  try{if(waSfxBus)waSfxBus.gain.value=soundOn?1:0;}catch(e){}
+ try{waBgmSync();}catch(e){}
 }
-/* buffer di rumore riusato (white) per snare/hat/sfx */
+
+/* --- colonna sonora: file MP3 in loop (non piu' sequencer generativo) --- */
+function waBgmInit(){
+ if(waBgm)return waBgm;
+ try{
+  const el=document.getElementById('bgm');
+  if(!el)return null;
+  el.loop=true;el.preload='auto';
+  waBgm=el;waBgmSync();
+  return waBgm;
+ }catch(e){waBgm=null;return null;}
+}
+function waBgmSync(){
+ const el=waBgm||document.getElementById('bgm');
+ if(!el)return;
+ try{el.volume=Math.min(1,Math.max(0,waVol*WA_BGM_GAIN));}catch(e){}
+ if(!musicOn){try{el.pause();}catch(e){}}
+}
+function waBgmPlay(){
+ if(!musicOn)return;
+ const el=waBgmInit();
+ if(!el)return;
+ try{const p=el.play();if(p&&p.catch)p.catch(function(){});}catch(e){}
+}
+function waBgmStop(){
+ const el=waBgm||document.getElementById('bgm');
+ if(!el)return;
+ try{el.pause();}catch(e){}
+}
+/* buffer di rumore riusato (white) per gli SFX */
 function waNoiseBuffer(){
  if(waNoiseBuf)return waNoiseBuf;
  const len=Math.floor(waCtx.sampleRate*1.0);
@@ -264,113 +280,6 @@ function waNote(freq,type,dur,when,bus,gain,env,filter){
  return o;
 }
 
-/* --- pad: due oscillatori leggermente stonati + filtro, voce sostenuta --- */
-function waPadChord(freqs,when,dur,vel,cutoff){
- if(!waCtx||!musicOn)return;
- const t=Math.max((when==null?waCtx.currentTime:when),waCtx.currentTime);
- const d=dur||2.2;
- while(waPadVoices.length>=MAX_PAD_VOICES){
-  const old=waPadVoices.shift();
-  try{
-   if(old.g.gain.cancelAndHoldAtTime)old.g.gain.cancelAndHoldAtTime(t);
-   else{old.g.gain.cancelScheduledValues(t);old.g.gain.setValueAtTime(old.g.gain.value,t);}
-   /* crossfade: la voce vecchia scende mentre la nuova sale (stessa durata dell'attacco) */
-   old.g.gain.linearRampToValueAtTime(0,t+0.35);
-   /* ferma TUTTI gli oscillatori della voce: lasciarne attivi produce pad sovrapposti/distorti */
-   (old.os||[]).forEach(function(o){try{o.stop(t+0.4);}catch(e){}});
-  }catch(e){}
- }
- const f=waCtx.createBiquadFilter();
- f.type='lowpass';f.frequency.setValueAtTime(cutoff||1200,t);f.Q.value=0.7;
- const g=waCtx.createGain();
- const peak=Math.max(0.02,(vel==null?0.3:vel));
- g.gain.setValueAtTime(0,t);
- g.gain.linearRampToValueAtTime(peak,t+0.35);
- g.gain.setValueAtTime(peak,t+d*0.65);
- g.gain.linearRampToValueAtTime(0,t+d);
- f.connect(g);g.connect(waMusicBus);
- const vs=[];
- freqs.forEach(function(fr){
-  const o1=waCtx.createOscillator();o1.type='sawtooth';o1.frequency.setValueAtTime(fr,t);
-  const o2=waCtx.createOscillator();o2.type='sawtooth';o2.frequency.setValueAtTime(fr*1.004,t);
-  o1.connect(f);o2.connect(f);
-  o1.start(t);o2.start(t);o1.stop(t+d+0.1);o2.stop(t+d+0.1);
-  vs.push(o1,o2);
- });
- waPadVoices.push({os:vs,g:g});
- /* la cleanup parte da quando la nota e' davvero finita (tenendo conto dell'anticipo di scheduling) */
- const waitMs=Math.max(0,(t-waCtx.currentTime)+d+0.3)*1000;
- setTimeout(()=>{try{vs.forEach(function(o){o.disconnect();});f.disconnect();g.disconnect();}catch(e){}
-  const i=waPadVoices.findIndex(function(v){return v.g===g;});if(i>=0)waPadVoices.splice(i,1);
- },waitMs);
-}
-
-/* --- basso: sine con filtro, attacco breve --- */
-function waBassNote(freq,when,len,vel,cutoff){
- if(!waCtx||!musicOn)return;
- const t=Math.max((when==null?waCtx.currentTime:when),waCtx.currentTime);
- const L=len||0.4;
- const o=waCtx.createOscillator();o.type='sine';
- o.frequency.setValueAtTime(freq,t);
- const f=waCtx.createBiquadFilter();f.type='lowpass';
- f.frequency.setValueAtTime(cutoff||300,t);f.Q.value=1;
- const g=waCtx.createGain();
- const v=(vel==null?0.34:vel);
- g.gain.setValueAtTime(0,t);
- g.gain.linearRampToValueAtTime(v,t+0.015);
- g.gain.linearRampToValueAtTime(v*0.7,t+L*0.6);
- g.gain.linearRampToValueAtTime(0,t+L);
- o.connect(f);f.connect(g);g.connect(waMusicBus);
- o.start(t);o.stop(t+L+0.08);
- setTimeout(()=>{try{o.disconnect();f.disconnect();g.disconnect();}catch(e){}},(L+0.2)*1000);
-}
-
-/* --- percussioni --- */
-function waKick(t,vel,midi){
- if(!waCtx||!musicOn)return;
- const time=Math.max((t==null?waCtx.currentTime:t),waCtx.currentTime);
- const base=midiToFreq(midi||24);
- const o=waCtx.createOscillator();o.type='sine';
- o.frequency.setValueAtTime(base,time);
- o.frequency.exponentialRampToValueAtTime(Math.max(20,base*0.45),time+0.13);
- const g=waCtx.createGain();
- const v=(vel==null?0.4:vel);
- g.gain.setValueAtTime(0,time);
- g.gain.linearRampToValueAtTime(v,time+0.005);
- g.gain.exponentialRampToValueAtTime(0.0001,time+0.32);
- o.connect(g);g.connect(waMusicBus);
- o.start(time);o.stop(time+0.36);
- setTimeout(()=>{try{o.disconnect();g.disconnect();}catch(e){}},500);
-}
-function waSnare(t,vel,bus){
- if(!waCtx||!musicOn)return;
- const time=Math.max((t==null?waCtx.currentTime:t),waCtx.currentTime);
- const src=waCtx.createBufferSource();src.buffer=waNoiseBuffer();
- src.loop=true;
- const hp=waCtx.createBiquadFilter();hp.type='highpass';hp.frequency.value=1400;
- const g=waCtx.createGain();
- const v=(vel==null?0.25:vel);
- g.gain.setValueAtTime(0,time);
- g.gain.linearRampToValueAtTime(v,time+0.004);
- g.gain.exponentialRampToValueAtTime(0.0001,time+0.14);
- src.connect(hp);hp.connect(g);g.connect(bus||waMusicBus);
- src.start(time);src.stop(time+0.18);
- setTimeout(()=>{try{src.disconnect();hp.disconnect();g.disconnect();}catch(e){}},300);
-}
-function waHat(t,vel,bus){
- if(!waCtx||!musicOn)return;
- const time=Math.max((t==null?waCtx.currentTime:t),waCtx.currentTime);
- const src=waCtx.createBufferSource();src.buffer=waNoiseBuffer();src.loop=true;
- const hp=waCtx.createBiquadFilter();hp.type='highpass';hp.frequency.value=7000;
- const g=waCtx.createGain();
- const v=(vel==null?0.14:vel);
- g.gain.setValueAtTime(0,time);
- g.gain.linearRampToValueAtTime(v,time+0.003);
- g.gain.exponentialRampToValueAtTime(0.0001,time+0.045);
- src.connect(hp);hp.connect(g);g.connect(bus||waMusicBus);
- src.start(time);src.stop(time+0.08);
- setTimeout(()=>{try{src.disconnect();hp.disconnect();g.disconnect();}catch(e){}},200);
-}
 /* --- rumore generico (SFX) --- */
 function waNoise(t,dur,vel,bus,cutoff,type){
  if(!waCtx)return;
@@ -390,158 +299,6 @@ function waNoise(t,dur,vel,bus,cutoff,type){
  node.connect(g);g.connect(bus||waSfxBus);
  src.start(time);src.stop(time+D+0.05);
  setTimeout(()=>{try{src.disconnect();g.disconnect();}catch(e){}},(D+0.2)*1000);
-}
-
-/* ===== COLONNA SONORA: sequencer generativo ===== */
-/* Clock: un solo setInterval(25ms) che schedula in anticipo i passi sul tempo del
-   AudioContext. Nessun node viene creato direttamente nel callback del timer:
-   tutto viene schedulato con timestamp audio assoluti -> niente stuttering. */
-let waNextTime=0,waStepCounter=0,waAbsStep=0,waScheduleAhead=0;
-
-function waStartSeq(){
- if(waSeqId||!waCtx||!musicOn)return;
- const cfg=AUDIO_MODES[waLastMode]||AUDIO_MODES.menu;
- waNextTime=waCtx.currentTime+0.08;
- waStepCounter=0;waAbsStep=0;
- waSeqId=setInterval(waTick,WA_TICK_MS);
-}
-function waStopSeq(){
- if(waSeqId){clearInterval(waSeqId);waSeqId=null;}
-}
-/* schedula i passi finche' non si e' oltre la finestra di anticipo */
-function waTick(){
- if(!waCtx||!musicOn){waStopSeq();return;}
- if(waCtx.state==='suspended'){waResume();}
- /* reazione immediata al cambio di modalita' (non aspettare il watcher da 300ms) */
- if(musicMode!==waLastMode){
-  const m=AUDIO_MODES[musicMode]?musicMode:'menu';
-  const changed=(m!==waLastMode);
-  waLastMode=m;
-  if(changed){try{waSwish(m==='frenzy'||m==='danger'?0.7:0.4);}catch(e){}}
- }
- const cfg=AUDIO_MODES[waLastMode]||AUDIO_MODES.menu;
- const stepDur=60/cfg.bpm/4; /* 16th */
- const now=waCtx.currentTime;
- /* Se il main thread e' stato bloccato (frame pesanti del game 3D) il clock e' in ritardo:
-    NON schedulare mai un nodo nel passato (causerebbe click/stattering).
-    Si riparte da adesso con un piccolo anticipo. */
- if(waNextTime<now-0.001)waNextTime=now+0.02;
- const horizon=now+WA_LOOKAHEAD;
- let guard=0;
- while(waNextTime<horizon&&guard<64){
-  try{waScheduleStep(waStepCounter,waNextTime,cfg);}catch(e){}
-  waStepCounter=(waStepCounter+1)%16;
-  waAbsStep++;
-  waNextTime+=stepDur;
-  guard++;
- }
-}
-/* un passo 16ths: pad + basso + batteria + arpeggio */
-function waScheduleStep(step,time,cfg){
- const s=step%16,bar=Math.floor(waAbsStep/16);
- const chord=cfg.chords[bar%cfg.chords.length],root=cfg.roots[bar%cfg.roots.length];
- const inten=waIntensity;
- const stepDur=60/cfg.bpm/4;
- /* PAD: una volta per battuta, con dissolvenza */
- if(s===0){
-  const dur=stepDur*16;
-  waPadChord(chord.map(midiToFreq),time,dur,cfg.padGain*(0.5+inten*0.6),cfg.cutoff+inten*900);
- }
- /* BASSO */
- if(inten>0.22){
-  let play=false,len=stepDur*4,vel=0.7,note=root;
-  if(cfg.drums==='edm'){play=(s%2===0);note=root+(s%8===4?12:0);vel=0.85;}
-  else if(cfg.drums==='heart'){play=(s===0||s===7||s===8);len=(s===7?stepDur*2:stepDur*8);vel=(s===0?0.95:0.6);}
-  else if(cfg.drums==='half'){play=(s===0||s===8);len=stepDur*8;vel=0.55;}
-  else{play=(s%4===0||s===10);len=stepDur*4;vel=0.65;}
-  if(play)waBassNote(midiToFreq(note),time,len,cfg.bassGain*vel,cfg.bassCut+inten*200);
- }
- /* BATTERIA */
- if(inten>0.3){
-  if(cfg.drums==='edm'){
-   if(s%4===0)waKick(time,0.9*cfg.bassGain*2);
-   if(s===4||s===12)waSnare(time,0.55);
-   if(Math.random()<cfg.hatProb)waHat(time,0.12);
-  }else if(cfg.drums==='heart'){
-   if(s===0||s===3)waKick(time,s===0?0.95:0.5);
-   if(s%8===4&&inten>0.55)waSnare(time,0.35);
-   if(s%4===2&&Math.random()<0.5)waHat(time,0.1);
-  }else if(cfg.drums==='half'){
-   if(s===0||s===10)waKick(time,0.6);
-   if(s===8&&inten>0.5)waSnare(time,0.35);
-   if(s%4===2&&Math.random()<cfg.hatProb)waHat(time,0.09);
-  }else{
-   if(s===0||s===8||(inten>0.6&&s===10))waKick(time,0.8);
-   if(s===4||s===12)waSnare(time,0.5);
-   if(s%2===0&&Math.random()<cfg.hatProb)waHat(time,0.11);
-  }
- }
- /* ARPEGGIO generativo */
- if(Math.random()<cfg.arpProb*(0.4+inten)){
-  waMelodyIdx+=(Math.random()<0.5?-1:1)*(Math.random()<0.2?2:1);
-  if(waMelodyIdx<0)waMelodyIdx=0;
-  if(waMelodyIdx>=cfg.scale.length)waMelodyIdx=cfg.scale.length-1;
-  const m=chord[0]+12+cfg.scale[waMelodyIdx];
-  waNote(midiToFreq(m),'square',stepDur*1.6,time,waMusicBus,0.10+inten*0.10,{a:0.005,d:0.08,s:0,r:0.14});
- }
- /* PLUCK di accento */
- if(inten>0.62&&s===12&&bar%2===1){
-  waNote(midiToFreq(chord[chord.length-1]+24),'triangle',stepDur*3,time,waMusicBus,0.14,{a:0.005,d:0.18,s:0,r:0.3});
- }
-}
-
-/* --- intensita' dinamica (dipende da score/streak/altezza torre) --- */
-function waTargetIntensity(){
- try{
-  if(musicMode==='frenzy')return 0.92;
-  if(musicMode==='danger')return 0.72;
-  if(musicMode==='game'){
-   const s=(typeof score==='number'?score:0),st=(typeof perfectStreak==='number'?perfectStreak:0),h=(typeof stack!=='undefined'?stack.length:4);
-   return Math.min(0.9,0.36+Math.min(s/60,0.32)+Math.min(st/10,0.14)+Math.min(Math.max(h-4,0)/40,0.12));
-  }
-  return 0.26;
- }catch(e){return 0.3;}
-}
-/* --- cambio modalita' + aggiornamento parametri --- */
-function waApplyMode(force){
- const m=AUDIO_MODES[musicMode]?musicMode:'menu';
- const changed=(m!==waLastMode);
- waLastMode=m;
- if(!waReady)return;
- const cfg=AUDIO_MODES[m];
- /* il pad viene rilanciato subito con la nuova modalita' */
- if(changed&&!force)waSwish(m==='frenzy'||m==='danger'?0.7:0.4);
-}
-function waSwish(power){
- if(!soundOn||!waCtx)return;
- const p=power||0.5,dur=0.45+p*0.45;
- waNoise(waCtx.currentTime,dur,0.16+p*0.18,waSfxBus,1200+2600*p,'bandpass');
-}
-/* --- watcher: aggiorna intensita', recupera il sequencer --- */
-function waWatchStart(){
- if(waWatchId)return;
- waWatchId=setInterval(function(){
-  try{
-   if(musicMode!==waLastMode)waApplyMode(false);
-   waTargetInt=waTargetIntensity();
-   waIntensity+=(waTargetInt-waIntensity)*0.08;
-   if(musicOn&&waReady&&!waSeqId)waStartSeq();
-   if(!musicOn&&waSeqId)waStopSeq();
-   if(musicOn&&waReady&&waSeqId&&waCtx&&waCtx.state==='suspended')waResume();
-  }catch(e){}
- },300);
-}
-/* --- avvio / stop musica --- */
-function waMusicStart(){
- if(!musicOn)return;
- if(!waInit())return;
- waResume();
- waApplyMode(true);
- waStartSeq();
- waWatchStart();
-}
-function waMusicStop(){
- waStopSeq();
 }
 
 /* ===== SFX (bus separato, con riverbero dedicato) ===== */
@@ -703,12 +460,12 @@ function sfxTick(){
 /* ===== API PUBBLICHE ===== */
 /* sblocco audio al primo gesto utente */
 function audioUnlock(){
+ /* la musica (MP3) non dipende dal Web Audio: parte anche se il context non e' disponibile */
+ if(musicOn){try{waBgmPlay();}catch(e){}}
  if(!window.AudioContext&&!window.webkitAudioContext)return false;
  const ok=waInit();
  waResume();
  try{waMuteSync();}catch(e){}
- if(musicOn){try{waMusicStart();}catch(e){}}
- else{try{waWatchStart();}catch(e){}}
  try{refreshSoundBtn();}catch(e){}
  return ok;
 }
@@ -734,8 +491,8 @@ function toggleMusic(){
  try{localStorage.setItem('stack3d_music',musicOn?'1':'0');}catch(e){}
  try{waMuteSync();}catch(e){}
  refreshSoundBtn();
- if(!musicOn)waMusicStop();
- else{try{audioUnlock();}catch(e){}try{waMusicStart();}catch(e){}}
+ if(!musicOn)waBgmStop();
+ else{try{audioUnlock();}catch(e){}try{waBgmPlay();}catch(e){}}
 }
 /* volume */
 function setVol(v){waSetVol(v);}
@@ -1012,7 +769,7 @@ function startFrenzy(){
  // colora solo i blocchi piazzati della torre (conserva le 2 basi, escludi il pezzo in movimento in cima)
  for(let i=2;i<stack.length-1;i++)frenzyColorize(stack[i]);
  $('frenzy-hud').classList.add('show');updateFrenzyHUD();
- banner('🎨 FRENZY!');flash(.6,'#ff71ce');shake(.6,.5);vibrate([60,40,60,40,80]);sfxFrenzyStart();musicMode='frenzy';
+ banner('🎨 FRENZY!');flash(.6,'#ff71ce');shake(.6,.5);vibrate([60,40,60,40,80]);sfxFrenzyStart();
  clearInterval(frenzyTimerId);clearInterval(frenzyFlashId);
  frenzyTimerId=setInterval(()=>{frenzyTimeLeft-=.1;if(frenzyTimeLeft<=0){endFrenzy();return;}if(frenzyTimeLeft<2)sfxTick();updateFrenzyHUD();},100);
  // lampeggio titolo
@@ -1065,7 +822,7 @@ function endFrenzy(){
  if(topNow&&moving){moving.width=topNow.width;moving.depth=topNow.depth;moving.mesh.scale.x=Math.max(topNow.width,.001);moving.mesh.scale.z=Math.max(topNow.depth,.001);moving.mesh.position.x=topNow.mesh.position.x;moving.mesh.position.z=topNow.mesh.position.z;moving.x=moving.mesh.position.x;moving.z=moving.mesh.position.z;moving.mesh.position.y=boxHeight*(stack.length-1);}
  // (speed volutamente invariata)
  banner('Frenzy over! -'+frenzyHits+' blocks');flash(.5,'#ffffff');saveMeta();refreshHUD();sfxWave();
- frenzySinceCheck=0;musicMode=gameStarted&&!gameEnded?'game':'menu';
+ frenzySinceCheck=0;
 }
 function unlockBlastAlert(){
  const b=$('special-banner');
@@ -1086,7 +843,7 @@ function startBlast(){
  setBlastButtonsDisabled(false);
  for(let i=2;i<stack.length-1;i++)frenzyColorize(stack[i]);
  $('blast-hud').classList.add('show');updateBlastHUD();
- banner('💥 COLOR BLAST! WAVE 1/4');flash(.6,'#ffe72d');shake(.6,.5);vibrate([60,40,60,40,80]);sfxBlastStart();musicMode='frenzy';
+ banner('💥 COLOR BLAST! WAVE 1/4');flash(.6,'#ffe72d');shake(.6,.5);vibrate([60,40,60,40,80]);sfxBlastStart();
  clearInterval(blastTimerId);clearInterval(blastWaveId);clearInterval(blastFlashId);
  blastTimerId=setInterval(()=>{blastTimeLeft-=.1;if(blastTimeLeft<=0){endBlast();return;}if(blastTimeLeft<2)sfxTick();updateBlastHUD();},100);
  blastWaveId=setInterval(()=>{
@@ -1144,7 +901,7 @@ function endBlast(finalMsg){
  const topNow=stack[stack.length-2];const moving=stack[stack.length-1];
  if(topNow&&moving){moving.width=topNow.width;moving.depth=topNow.depth;moving.mesh.scale.x=Math.max(topNow.width,.001);moving.mesh.scale.z=Math.max(topNow.depth,.001);moving.mesh.position.x=topNow.mesh.position.x;moving.mesh.position.z=topNow.mesh.position.z;moving.x=moving.mesh.position.x;moving.z=moving.mesh.position.z;moving.mesh.position.y=boxHeight*(stack.length-1);}
  banner(finalMsg||('Color Blast over! -'+blastHits+' blocks'));flash(.5,'#ffffff');saveMeta();refreshHUD();sfxWave();
- blastSinceCheck=0;musicMode=gameStarted&&!gameEnded?'game':'menu';
+ blastSinceCheck=0;
 }
 
 async function handlePlace(){
@@ -1162,10 +919,10 @@ async function handlePlace(){
    runLife=on.indexOf('life')>=0;runMagnet=on.indexOf('magnet')>=0;runSlowLeft=on.indexOf('slow')>=0?15:0;document.body.classList.toggle('slowmo',runSlowLeft>0);
    saveMeta();
    const ic=[];if(runLife)ic.push('❤️');if(runSlowLeft>0)ic.push('⏳');if(runMagnet)ic.push('🧲');
-   banner('Power-ups active: '+ic.join(' '),1800);sfxPower();musicMode='game';
+   banner('Power-ups active: '+ic.join(' '),1800);sfxPower();
   }
  }
- if(firstPlace)musicMode='game';
+
  const top=stack[stack.length-1],prev=stack[stack.length-2];
  const size=currentDirection==='x'?top.width:top.depth;
  let delta=top.mesh.position[currentDirection]-prev.mesh.position[currentDirection];
@@ -1229,7 +986,7 @@ async function detonateBomb(){
  demolishing=true;const mySeq=++demolishSeq;
  bombs--;refreshHUD();
  const total=Math.min(BOMB_POWER,(stack.length-1)-2);
- banner('-'+total+' blocks');flash(.7,'#ff9500');shake(1.2,.7);vibrate([80,50,80]);sfxBomb();musicMode='danger';
+ banner('-'+total+' blocks');flash(.7,'#ff9500');shake(1.2,.7);vibrate([80,50,80]);sfxBomb();
  const wp=new THREE.Vector3();stack[stack.length-1].mesh.getWorldPosition(wp);spawnBurst(wp,['#ff9500','#ff3b30','#ffe27a','#555555'],60,8);
  // distruzione a cascata: un pezzo alla volta dall'alto verso il basso (conserva le 2 basi); il pezzo in movimento resta dov'e'
  let removed=0;
@@ -1247,13 +1004,13 @@ async function detonateBomb(){
  // abbassa subito la camera insieme alla torre tagliata
  const targetY=20+(stack.length-2)*boxHeight;camera.position.y=Math.min(camera.position.y,targetY);camera.lookAt(0,camera.position.y-20,0);
  demolishing=false;
- saveMeta();refreshHUD();musicMode=gameStarted&&!gameEnded?'game':'menu';
+ saveMeta();refreshHUD();
 }
 async function detonateTNT(){
  const below=Math.min(TNT_POWER,stack.length-3);
  if(below<=0)return 0;
  demolishing=true;const mySeq=++demolishSeq;
- banner('-'+below+' blocks');flash(.7,'#ff9500');shake(1.2,.7);vibrate([80,50,80]);sfxTNT();musicMode='danger';
+ banner('-'+below+' blocks');flash(.7,'#ff9500');shake(1.2,.7);vibrate([80,50,80]);sfxTNT();
  const wp=new THREE.Vector3();stack[stack.length-1].mesh.getWorldPosition(wp);spawnBurst(wp,['#ff9500','#ff3b30','#ffe27a','#555555'],60,8);
  // la TNT stessa esplode (non conteggiata), poi distruzione a cascata dei pezzi sotto: uno alla volta dall'alto verso il basso, identica alla bomba (si tocca solo la Y, mai X/Z: niente slittamenti)
  const tnt=stack.pop();towerGroup.remove(tnt.mesh);
@@ -1274,7 +1031,7 @@ async function detonateTNT(){
  return removed;
 }
 function endGame(){
- if(gameEnded)return;gameEnded=true;vibrate(80);shake(1,.7);flash(.5,'#ff0044');sfxOver();musicMode='menu';
+ if(gameEnded)return;gameEnded=true;vibrate(80);shake(1,.7);flash(.5,'#ff0044');sfxOver();
  if(frenzyActive){frenzyActive=false;clearInterval(frenzyTimerId);clearInterval(frenzyFlashId);frenzyTimerId=frenzyFlashId=null;projectiles.forEach(p=>scene.remove(p.mesh));projectiles=[];$('frenzy-hud').classList.remove('show');for(let i=0;i<stack.length;i++){if(stack[i].frenzyColor)frenzyRestore(stack[i]);}}
   if(blastActive){blastActive=false;blastUsed=false;clearInterval(blastTimerId);clearInterval(blastWaveId);clearInterval(blastFlashId);blastTimerId=blastWaveId=blastFlashId=null;$('blast-hud').classList.remove('show');for(let i=0;i<stack.length;i++){if(stack[i].frenzyColor)frenzyRestore(stack[i]);}setBlastButtonsDisabled(false);}
  const top=stack[stack.length-1];
@@ -1293,7 +1050,7 @@ function restartGame(){
  $('gameover').style.display='none';$('frenzy-hud').classList.remove('show');$('blast-hud').classList.remove('show');$('special-banner').textContent='';$('score').textContent='0';
  $('menu').classList.remove('open');
  addLayer(0,0,10,10,null);addLayer(0,0,10,10,null);
- camera.position.set(20,20,20);camera.lookAt(0,0,0);refreshHUD();musicMode='menu';sfxUI();
+ camera.position.set(20,20,20);camera.lookAt(0,0,0);refreshHUD();sfxUI();
 }
 function buildEquipRow(rowId,data,key,label){
  const row=$(rowId);if(!row)return;row.innerHTML='';
@@ -1385,7 +1142,7 @@ function init(){
  document.querySelectorAll('#frenzy-btns .frenzy-btn').forEach(b=>{b.onclick=e=>{e.stopPropagation();shootFrenzy(b.dataset.color);};});
   document.querySelectorAll('#blast-btns .blast-btn').forEach(b=>{b.onclick=e=>{e.stopPropagation();explodeBlast(b.dataset.color);};});
  // audio: sblocca AudioContext al primo gesto (capture: prima del gameplay),
- // ritenta resume su ogni gesto, avvia sequencer musica, sincronizza toggle
+ // ritenta resume su ogni gesto, avvia la traccia MP3, sincronizza toggle
  try{
   const unlock=()=>{audioUnlock();};
   addEventListener('pointerdown',unlock,{capture:true});
