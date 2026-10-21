@@ -93,7 +93,7 @@ canvas{display:block}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
-</head>
+<style>.ach-toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#1a1a2e,#2b1055);color:#fff;padding:12px 20px;border-radius:10px;border:2px solid #ffd700;z-index:70;box-shadow:0 4px 20px rgba(0,0,0,.5);animation:achIn .4s ease;min-width:220px;text-align:center}.ach-toast-name{font-weight:bold;font-size:1.1rem;color:#ffd700}.ach-toast-desc{font-size:.85rem;opacity:.85;margin-top:2px}.ach-toast-out{animation:achOut .4s ease forwards}@keyframes achIn{from{opacity:0;transform:translateX(-50%) translateY(20px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}@keyframes achOut{to{opacity:0;transform:translateX(-50%) translateY(-20px)}}.ach-card{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:8px;text-align:center}.ach-card.unlocked{border-color:#ffd700;background:rgba(255,215,0,.1)}.ach-card.locked{opacity:.45}.ach-icon{font-size:1.5rem}.ach-name{font-weight:bold;font-size:.85rem;margin-top:4px}.ach-desc{font-size:.7rem;opacity:.7;margin-top:2px}</style>
 <body>
 <div id="tap-to-play">TAP TO PLAY</div>
 <div id="hud-left"><div class="pill" id="coins">🪙 0</div><div class="pill" id="perfect-pill">Perfect x0</div></div>
@@ -106,7 +106,7 @@ canvas{display:block}
 <div id="power-hud"></div>
 <div id="frenzy-hud"><div id="frenzy-title">🎨 FRENZY</div><div id="frenzy-timer"><div id="frenzy-timer-fill"></div></div><div id="frenzy-btns"><button class="frenzy-btn" data-color="red" style="background:#ff2d2d" aria-label="Shoot red">🔴</button><button class="frenzy-btn" data-color="green" style="background:#2dff5e" aria-label="Shoot green">🟢</button><button class="frenzy-btn" data-color="blue" style="background:#2d7bff" aria-label="Shoot blue">🔵</button><button class="frenzy-btn" data-color="yellow" style="background:#ffe72d" aria-label="Shoot yellow">🟡</button></div><div id="frenzy-info" style="font-size:.8rem;font-weight:700;opacity:.9"></div></div>
 <div id="blast-hud"><div id="blast-title">💥 COLOR BLAST</div><div id="blast-timer"><div id="blast-timer-fill"></div></div><div id="blast-btns"><button class="frenzy-btn blast-btn" data-color="red" style="background:#ff2d2d" aria-label="Explode red">🔴</button><button class="frenzy-btn blast-btn" data-color="green" style="background:#2dff5e" aria-label="Explode green">🟢</button><button class="frenzy-btn blast-btn" data-color="blue" style="background:#2d7bff" aria-label="Explode blue">🔵</button><button class="frenzy-btn blast-btn" data-color="yellow" style="background:#ffe72d" aria-label="Explode yellow">🟡</button></div><div id="blast-info" style="font-size:.8rem;font-weight:700;opacity:.9"></div></div>
-<div id="menu"><button class="btn" id="menu-btn" aria-label="Menu">&#9776;</button><div id="menu-popup"><button class="btn" id="restart-btn">Restart</button><button class="btn" id="shop-btn">Shop</button><button class="btn" id="sound-btn" title="Toggle audio (M)">🔊 Audio: ON</button></div></div>
+<div id="menu"><button class="btn" id="menu-btn" aria-label="Menu">&#9776;</button><div id="menu-popup"><button class="btn" id="restart-btn">Restart</button><button class="btn" id="shop-btn">Shop</button><button class="btn" id="ach-btn">Achievements</button><button class="btn" id="sound-btn" title="Toggle audio (M)">🔊 Audio: ON</button></div></div>
 <div id="flash"></div>
 <div id="gameover"><div class="card"><h1>GAME OVER</h1><p id="go-reason"></p><p id="go-stats"></p><button class="btn" id="go-retry">Play again</button> <button class="btn" id="go-shop">Shop</button></div></div>
 <div id="shop"><div class="card">
@@ -1188,8 +1188,10 @@ function init(){
  addEventListener('pointerdown',e=>{try{audioUnlock();}catch(_){}const inMenu=!!e.target.closest('#menu');if(!inMenu)$('menu').classList.remove('open');if(inMenu||e.target.closest('button')||e.target.closest('#shop')||e.target.closest('#gameover'))return;handlePlace();});
  addEventListener('keydown',e=>{try{audioUnlock();}catch(_){}if(e.code==='Space'){e.preventDefault();if(!frenzyActive&&!blastActive)handlePlace();}if(e.code==='KeyR')restartGame();if(e.code==='KeyM')toggleSound();if(e.code==='KeyB'&&!frenzyActive&&!blastActive)detonateBomb();if(frenzyActive){if(e.code==='Digit1')shootFrenzy('red');if(e.code==='Digit2')shootFrenzy('green');if(e.code==='Digit3')shootFrenzy('blue');if(e.code==='Digit4')shootFrenzy('yellow');}if(blastActive){if(e.code==='Digit1')explodeBlast('red');if(e.code==='Digit2')explodeBlast('green');if(e.code==='Digit3')explodeBlast('blue');if(e.code==='Digit4')explodeBlast('yellow');}});
  $('shop-btn').onclick=e=>{e.stopPropagation();sfxUI();$('menu').classList.remove('open');$('shop').style.display='flex';refreshHUD();};
+  $('ach-btn').onclick=e=>{e.stopPropagation();sfxUI();$('menu').classList.remove('open');openAchievements();};
  $('go-shop').onclick=e=>{e.stopPropagation();sfxUI();$('shop').style.display='flex';refreshHUD();};
  $('shop-close').onclick=e=>{e.stopPropagation();sfxUI();$('shop').style.display='none';};
+  $('ach-close').onclick=e=>{e.stopPropagation();closeAchievements();};
  $('restart-btn').onclick=e=>{e.stopPropagation();$('menu').classList.remove('open');restartGame();};
  $('go-retry').onclick=e=>{e.stopPropagation();restartGame();};
  $('menu-btn').onclick=e=>{e.stopPropagation();sfxUI();$('menu').classList.toggle('open');};
@@ -1321,4 +1323,4 @@ function clearVortex(){
   vortexCubes.forEach(c=>scene.remove(c));
   vortexCubes=[];
 }
-</script></body></html>
+</script><div id="achievements" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:60;overflow:auto;padding:20px;"><div class="card" style="max-width:900px;margin:0 auto;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><h2 style="margin:0">Achievements <span id="ach-count"></span></h2><button class="btn" id="ach-close">Close</button></div><div id="ach-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;"></div></div></div></body></html>
