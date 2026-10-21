@@ -9,7 +9,7 @@
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{margin:0;overflow:hidden;font-family:'Segoe UI',Tahoma,sans-serif;background:#1a1a2e;user-select:none;-webkit-user-select:none;color:#fff}
 @keyframes tapBlink{0%,100%{opacity:1}50%{opacity:0.2}}
-#tap-to-play{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-size:2rem;font-weight:900;letter-spacing:4px;text-transform:uppercase;color:#fff;text-shadow:0 0 20px rgba(255,255,255,.6),0 0 40px rgba(255,113,206,.4);pointer-events:none;z-index:100;animation:tapBlink 1s ease-in-out infinite;display:none}
+#tap-to-play{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-size:2rem;font-weight:900;letter-spacing:4px;text-transform:uppercase;color:#fff;text-shadow:0 0 20px rgba(255,255,255,.6),0 0 40px rgba(255,113,206,.4);pointer-events:none;z-index:30;animation:tapBlink 1s ease-in-out infinite;display:none}
 #tap-to-play.show{display:block}
 body.slowmo canvas{filter:blur(1px) brightness(1.15);border:2px solid rgba(255,255,255,.35);box-shadow:0 0 24px rgba(255,255,255,.15)}
 body.slowmo{animation:slowmoPulse 2s ease-in-out infinite alternate}
