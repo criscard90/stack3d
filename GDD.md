@@ -1,5 +1,5 @@
 # STACK 3D — Game Design Document (GDD)
-Versione 1.0 — 20/10/2026 — da codice reale `index.html` (794 righe)
+Versione 2.0 — 21/10/2026 — da codice reale `index.html` (~2100 righe)
 
 > Single-file game. Three.js via CDN, nessun build. Solo `localStorage`. Run: aprire `index.html` con internet.
 
@@ -93,6 +93,9 @@ Aperto da Menu o GameOver. Valuta `monete N`. Bottoni: Compra oro / Usa ciano / 
 
 ## 13. Juice / FX
 flash overlay 80ms; shake max(mag,time); vibrate (20 taglio, 50 perfect, [40,40,80] bomba, [80,50,80] demolizioni, [60,40,60,40,120] sblocchi); particelle box .22 con gravita .15, scala *.985; overhang speedY-=0.05 rimossi y<-30; blinkT globale; blocchi normali hsl(lvl*14,75%,60%) Lambert.
+- **Suono esplosione 8-bit NES**: `sfxBlockExplode()` — pulse square + noise + triangle, suono crush 8-bit. Chiamato su bomba, TNT, frenzy hit, color blast.
+- **Vortice di cubi colorati**: su bomba e color blast. 80 cubi (0.45 unità) orbitano attorno alla torre (raggio 4.5-7), dal basso verso l'alto, con spin su tutti gli assi, dissolvendosi (shrink + fade) arrivati in cima. Durata sincronizzata con l'esplosione (bomba: total×0.13s, color blast: 1.5s).
+- **TAP TO PLAY**: testo lampeggiante (blink 1.2s) centrato in basso, z-index 30 (sotto shop overlay z-50), mostrato quando il gioco non è iniziato.
 
 ## 14. Stati & Edge
 preRun→inRun→demolishing (async 130ms/step, id demolishSeq per abort)→frenzy/blast→gameEnded→restart. restartGame pulisce tutto, reset score/speed .15/dir x/bombe/run/eventi/countdown 5/streak, 2 basi, camera (20,20,20). endGame cleanup eventi + moving→overhang + overlay. Basi 0-1 mai rimosse/colorate. Speed mai resettata tranne restart.
