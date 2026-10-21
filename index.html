@@ -221,7 +221,7 @@ function waNoiseBuffer(){
  waNoiseBuf=b;return b;
 /* curva di quantizzazione (bitcrush): dà il timbro "8-bit" ai suoni percussivi/esplosivi.
    Restituisce un Float32Array riutilizzabile (allocazione unica). */
-let waCrushCurve(steps){
+let waCrushCurve = (steps)=>{
   const n=steps||16;
   const c=new Float32Array(1024);
   for(let i=0;i<1024;i++){const x=(i/1023)*2-1;c[i]=Math.round(x*n)/n;}
@@ -1029,6 +1029,8 @@ async function handlePlace(){
   const ref=stack[stack.length-1];addLayer(currentDirection==='x'?-20:ref.mesh.position.x,currentDirection==='z'?-20:ref.mesh.position.z,ref.width,ref.depth,currentSpecial);
  }else{endGame();}
 }
+
+
 async function detonateBomb(){
  if(gameEnded||demolishing||frenzyActive||blastActive||bombs<=0||stack.length<=3)return;
  demolishing=true;const mySeq=++demolishSeq;
