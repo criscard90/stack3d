@@ -213,12 +213,12 @@ function checkAch(){
   if(s.maxSpeed>=0.75)unlockAch('speed_075');
   if(s.totalBombs>=25)unlockAch('bomb_25');
   if(s.totalTNT>=25)unlockAch('tnt_25');
-  if(s.maxScoreEver>=500)unlockAch('score_500');
+  if(s.maxScoreEver>=200)unlockAch('score_500');
   if(s.runStreak>=150)unlockAch('streak_150');
   if(s.maxTowerEver>=300)unlockAch('tower_300');
   if(s.runBlocks>=150&&s.runMisses===0)unlockAch('perfect_run_150');
   if(s.totalCoinsEarned>=10000)unlockAch('coins_10000');
-  if(s.maxScoreEver>=500)unlockAch('highscore_500');
+  if(s.maxScoreEver>=200)unlockAch('highscore_500');
   if(s.totalPerfects>=1000)unlockAch('perfects_1000');
   if(s.totalBombs>=50)unlockAch('bombs_50');
   if(s.totalTNT>=50)unlockAch('tnts_50');
