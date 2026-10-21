@@ -95,7 +95,6 @@ const ACHIEVEMENTS2=[
 {id:'frenzy_100',name:'Frenzy 100',desc:'Score 100 in Frenzy',tier:5},
 {id:'blast_100',name:'Blast 100',desc:'Blast 100 blocks in one blast',tier:5}];
 ACHIEVEMENTS.push(...ACHIEVEMENTS2);
-const ACHIEVEMENT_MAP={};
 ACHIEVEMENTS.forEach(a=>ACHIEVEMENT_MAP[a.id]=a);
 let achStats={
   totalPerfects:0,totalMisses:0,totalBlocks:0,totalBombs:0,totalTNT:0,
@@ -134,14 +133,6 @@ function unlockAch(id){
   showAchToast(ach);
   if(unlockedAch.size===ACHIEVEMENTS.length)unlockAch('all_achievements');
 }
-{id:'blast_100',name:'Blast 100',desc:'Blast 100 blocks in one blast',tier:5}];
-ACHIEVEMENTS.push(...ACHIEVEMENTS2);
-const ACHIEVEMENT_MAP={};
-ACHIEVEMENTS.forEach(a=>ACHIEVEMENT_MAP[a.id]=a);
-{id:'blast_first',name:'Blast First',desc:'Complete a Color Blast',tier:2},
-{id:'blast_10',name:'Blast 10',desc:'Blast 10 blocks in one blast',tier:2},
-{id:'magnet_master',name:'Magnet Master',desc:'Use magnet 3 times',tier:2},
-{id:'slow_motion',name:'Slow Motion',desc:'Use slow-mo 3 times',tier:2},
 function checkAch(){
   const s=achStats;
   if(s.runBlocks>=1)unlockAch('first_tap');
@@ -250,8 +241,6 @@ function renderAchievements(){
     return '<div class="ach-card '+(u?'unlocked':'locked')+'"><div class="ach-icon">'+(u?'🏆':'🔒')+'</div><div class="ach-name">'+a.name+'</div><div class="ach-desc">'+a.desc+'</div></div>';
   }).join('');
 }
-{id:'heart_saver',name:'Heart Saver',desc:'Survive 3 misses with hearts',tier:2},
-];
 ACHIEVEMENTS.push(...ACHIEVEMENTS2);
 const ACHIEVEMENT_MAP={};
 ACHIEVEMENTS.forEach(a=>ACHIEVEMENT_MAP[a.id]=a);
