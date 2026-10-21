@@ -93,7 +93,7 @@ const ACHIEVEMENTS2=[
 {id:'bombs_50',name:'Bomb Legend',desc:'Use 50 bombs total',tier:5},
 {id:'tnts_50',name:'TNT Legend',desc:'Trigger 50 TNTs total',tier:5},
 {id:'frenzy_100',name:'Frenzy 100',desc:'Score 100 in Frenzy',tier:5},
-{id:'blast_100',name:'Blast 100',desc:'Blast 100 blocks in one blast',tier:5}];
+{id:'blast_100',name:'Blast 100',desc:'Blast 100 blocks total',tier:5}];
 ACHIEVEMENTS.push(...ACHIEVEMENTS2);
 const ACHIEVEMENT_MAP={};
 ACHIEVEMENTS.forEach(a=>ACHIEVEMENT_MAP[a.id]=a);
