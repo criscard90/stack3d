@@ -958,7 +958,7 @@ function endBlast(finalMsg){
  // come endFrenzy: adatta il pezzo in movimento al top fisico rimasto, speed invariata
  const topNow=stack[stack.length-2];const moving=stack[stack.length-1];
  if(topNow&&moving){moving.width=topNow.width;moving.depth=topNow.depth;moving.mesh.scale.x=Math.max(topNow.width,.001);moving.mesh.scale.z=Math.max(topNow.depth,.001);moving.mesh.position.x=topNow.mesh.position.x;moving.mesh.position.z=topNow.mesh.position.z;moving.x=moving.mesh.position.x;moving.z=moving.mesh.position.z;moving.mesh.position.y=boxHeight*(stack.length-1);}
- banner(finalMsg||('Color Blast over! -'+blastHits+' blocks'));flash(.5,'#ffffff');saveMeta();refreshHUD();sfxWave();if(blastHits>=25&&typeof unlockAch==='function')unlockAch('blast_25');if(blastHits>=50&&typeof unlockAch==='function')unlockAch('blast_50');if(blastHits>=100&&typeof unlockAch==='function')unlockAch('blast_100');
+ banner(finalMsg||('Color Blast over! -'+blastHits+' blocks'));flash(.5,'#ffffff');saveMeta();refreshHUD();sfxWave();try{if(typeof achStats!=='undefined'){achStats.totalBlastHits=(achStats.totalBlastHits||0)+blastHits;if(typeof checkAch==='function')checkAch();}}catch(e){}
  blastSinceCheck=0;
 }
 
