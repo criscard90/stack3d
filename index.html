@@ -823,7 +823,7 @@ function unlockFrenzyAlert(){
 function frenzyMaybeTrigger(){if(frenzyActive||blastActive||gameEnded||!frenzyUnlocked)return;frenzySinceCheck++;if(frenzySinceCheck<FRENZY_CHECK_EVERY)return;frenzySinceCheck=0;if(Math.random()<FRENZY_CHANCE)startFrenzy();}
 function startFrenzy(){
  if(frenzyActive||blastActive||gameEnded||demolishing||stack.length<=4||!frenzyUnlocked)return;
- frenzyActive=true;frenzyTimeLeft=frenzyDuration();frenzyStartLen=stack.length;frenzyHits=0;
+ frenzyActive=true;frenzyTimeLeft=frenzyDuration();frenzyStartLen=stack.length;frenzyMissed=false;frenzyHits=0;
  // colora solo i blocchi piazzati della torre (conserva le 2 basi, escludi il pezzo in movimento in cima)
  for(let i=2;i<stack.length-1;i++)frenzyColorize(stack[i]);
  $('frenzy-hud').classList.add('show');updateFrenzyHUD();
@@ -879,7 +879,7 @@ function endFrenzy(){
  const topNow=stack[stack.length-2];const moving=stack[stack.length-1];
  if(topNow&&moving){moving.width=topNow.width;moving.depth=topNow.depth;moving.mesh.scale.x=Math.max(topNow.width,.001);moving.mesh.scale.z=Math.max(topNow.depth,.001);moving.mesh.position.x=topNow.mesh.position.x;moving.mesh.position.z=topNow.mesh.position.z;moving.x=moving.mesh.position.x;moving.z=moving.mesh.position.z;moving.mesh.position.y=boxHeight*(stack.length-1);}
  // (speed volutamente invariata)
- banner('Frenzy over! -'+frenzyHits+' blocks');flash(.5,'#ffffff');saveMeta();refreshHUD();sfxWave();sfxBlockExplode();
+ banner('Frenzy over! -'+frenzyHits+' blocks');flash(.5,'#ffffff');saveMeta();refreshHUD();sfxWave();sfxBlockExplode();if(!frenzyMissed&&typeof unlockAch==='function')unlockAch('frenzy_no_miss');
  frenzySinceCheck=0;
 }
 function unlockBlastAlert(){
@@ -1101,6 +1101,7 @@ function endGame(){
  if(top){addOverhang(top.mesh.position.x,top.mesh.position.z,top.width,top.depth,top.mesh.material.color.clone());towerGroup.remove(top.mesh);}
  $('go-reason').textContent='You missed the block!';
  try{if(typeof achStats!=='undefined'){achStats.runMisses=(achStats.runMisses||0)+1;achStats.totalMisses=(achStats.totalMisses||0)+1;if(typeof checkAch==='function')checkAch();}}catch(e){}
+ if(frenzyActive)frenzyMissed=true;
  $('go-stats').innerHTML='Score: <b>'+score+'</b> - Best: <b>'+highScore+'</b><br>coins '+coins+' - best streak x'+bestStreak;
  $('gameover').style.display='flex';
 }
