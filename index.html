@@ -1265,13 +1265,13 @@ function spawnVortex(baseY,nCount=80){
   vortexBaseY=0;
   vortexTopY=baseY>0?baseY:20;
   vortexCubes=[];
-  const geometry=new THREE.BoxGeometry(0.2,0.2,0.2);
+  const geometry=new THREE.BoxGeometry(0.45,0.45,0.45);
   for(let i=0;i<nCount;i++){
     const hue=Math.random();
     const mat=new THREE.MeshBasicMaterial({color:new THREE.Color().setHSL(hue,0.8,0.6),transparent:true,opacity:1});
     const cube=new THREE.Mesh(geometry,mat);
     const angle=Math.random()*Math.PI*2;
-    const radius=2.5+Math.random()*1.5;
+    const radius=4.5+Math.random()*2.5;
     cube.position.set(
       Math.cos(angle)*radius,
       vortexBaseY+Math.random()*2,
