@@ -228,7 +228,10 @@ function checkAch(){
 function openAchievements(){
   const v=document.getElementById('achievements');
   if(v)v.style.display='flex';
+  try{checkAch();}catch(e){}
   renderAchievements();
+  const cc=document.getElementById('ach-count');
+  if(cc)cc.textContent='('+unlockedAch.size+'/'+ACHIEVEMENTS.length+')';
 }
 function closeAchievements(){
   const v=document.getElementById('achievements');
