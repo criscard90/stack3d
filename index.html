@@ -397,6 +397,9 @@ function sfxZap(bright){
  g.gain.exponentialRampToValueAtTime(0.0001,t+0.16);
  o.connect(g);g.connect(waSfxBus);
  o.start(t);o.stop(t+0.2);
+  setTimeout(()=>{try{o.disconnect();g.disconnect();}catch(e){}},400);
+  waNoise(t,0.12,0.1,waSfxBus,2500,'highpass');
+}
 /* esplosione blocchi 8-bit: sub + rumore quantizzato (bitcrush) + sweep.
    Chiamato da: sfxBomb, sfxTNT, explodeBlast, frenzyHit */
 function sfxBlockExplode(big){
@@ -441,7 +444,6 @@ function sfxBlockExplode(big){
   tri.connect(tg);tg.connect(waSfxBus);
   tri.start(t);tri.stop(t+0.25);
   setTimeout(()=>{try{tri.disconnect();tg.disconnect();}catch(e){}},300);
-}
 }
 
 /* magnet: arpeggio ascendente */
