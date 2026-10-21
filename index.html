@@ -92,7 +92,7 @@ canvas{display:block}
 
 </head>
 <body>
-<div id="hud-left"><div class="pill" id="coins">🪙 0</div><div class="pill" id="perfect-pill">Perfect x0</div><div class="pill" id="music-pill">🎵 menu · chill</div></div>
+<div id="hud-left"><div class="pill" id="coins">🪙 0</div><div class="pill" id="perfect-pill">Perfect x0</div></div>
 <div id="ui"><div id="score-frame"><div id="score">0</div><div id="high-score">Record: 0</div></div><div id="badge"></div>
 <!-- HUD monete/perfect spostato in alto a sinistra -->
 <div id="special-banner"></div>
@@ -142,7 +142,7 @@ try{waVol=parseFloat(localStorage.getItem('stack3d_vol')||'0.9')||0.9;}catch(e){
 let musicMode='menu';            /* impostata dal gioco (frenzy/game/danger/menu) */
 let waLastMode='__none__';
 let waIntensity=0.25,waTargetInt=0.25;
-let waMelodyIdx=4,waUiTick=0;
+let waMelodyIdx=4;
 let waSeqId=null,waWatchId=null;
 let waPadVoices=[];
 let waNoiseBuf=null;
@@ -418,7 +418,6 @@ function waTick(){
   const changed=(m!==waLastMode);
   waLastMode=m;
   if(changed){try{waSwish(m==='frenzy'||m==='danger'?0.7:0.4);}catch(e){}}
-  try{waUiUpd();}catch(e){}
  }
  const cfg=AUDIO_MODES[waLastMode]||AUDIO_MODES.menu;
  const stepDur=60/cfg.bpm/4; /* 16th */
@@ -512,14 +511,13 @@ function waApplyMode(force){
  const cfg=AUDIO_MODES[m];
  /* il pad viene rilanciato subito con la nuova modalita' */
  if(changed&&!force)waSwish(m==='frenzy'||m==='danger'?0.7:0.4);
- waUiUpd();
 }
 function waSwish(power){
  if(!soundOn||!waCtx)return;
  const p=power||0.5,dur=0.45+p*0.45;
  waNoise(waCtx.currentTime,dur,0.16+p*0.18,waSfxBus,1200+2600*p,'bandpass');
 }
-/* --- watcher: aggiorna intensita', recupera il sequencer, aggiorna HUD --- */
+/* --- watcher: aggiorna intensita', recupera il sequencer --- */
 function waWatchStart(){
  if(waWatchId)return;
  waWatchId=setInterval(function(){
@@ -530,21 +528,8 @@ function waWatchStart(){
    if(musicOn&&waReady&&!waSeqId)waStartSeq();
    if(!musicOn&&waSeqId)waStopSeq();
    if(musicOn&&waReady&&waSeqId&&waCtx&&waCtx.state==='suspended')waResume();
-   waUiTick++;if(waUiTick%8===0)waUiUpd();
   }catch(e){}
  },300);
-}
-/* --- HUD: pillola musica --- */
-function waUiUpd(){
- try{
-  const el=document.getElementById('music-pill');
-  if(!el)return;
-  const mode=AUDIO_MODES[waLastMode]?waLastMode:musicMode;
-  const cfg=AUDIO_MODES[mode]||AUDIO_MODES.menu;
-  const bars=Math.max(1,Math.round(waIntensity*5));
-  el.textContent='🎵 '+mode+' · '+cfg.label+' '+'▁▂▃▄▅'.slice(0,bars)+' · '+cfg.bpm+'bpm'+(waReady?' ●':' (audio: avvio)');
-  el.style.opacity=musicOn?'1':'0.45';
- }catch(e){}
 }
 /* --- avvio / stop musica --- */
 function waMusicStart(){
@@ -554,7 +539,6 @@ function waMusicStart(){
  waApplyMode(true);
  waStartSeq();
  waWatchStart();
- waUiUpd();
 }
 function waMusicStop(){
  waStopSeq();
@@ -726,7 +710,6 @@ function audioUnlock(){
  if(musicOn){try{waMusicStart();}catch(e){}}
  else{try{waWatchStart();}catch(e){}}
  try{refreshSoundBtn();}catch(e){}
- try{waUiUpd();}catch(e){}
  return ok;
 }
 /* pulsanti audio/musica */
@@ -744,7 +727,6 @@ function toggleSound(){
  try{audioUnlock();}catch(e){}
  try{waMuteSync();}catch(e){}
  refreshSoundBtn();
- try{waUiUpd();}catch(e){}
  if(soundOn){try{sfxUI();}catch(e){}}
 }
 function toggleMusic(){
@@ -752,7 +734,6 @@ function toggleMusic(){
  try{localStorage.setItem('stack3d_music',musicOn?'1':'0');}catch(e){}
  try{waMuteSync();}catch(e){}
  refreshSoundBtn();
- try{waUiUpd();}catch(e){}
  if(!musicOn)waMusicStop();
  else{try{audioUnlock();}catch(e){}try{waMusicStart();}catch(e){}}
 }

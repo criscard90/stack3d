@@ -39,4 +39,4 @@ Un solo sistema, **Web Audio API nativa** (nessuna libreria, nessun asset estern
 I toggle sono indipendenti: **SFX** spegne solo gli effetti, **Musica** spegne solo la colonna sonora. Il volume master è in `waMaster.gain` (persistito in `stack3d_vol`).
 
 ## HUD
-Pillola `🎵 <modalità> · <stile> · <bpm>` in alto a sinistra, accanto a monete e perfect streak.
+In alto a sinistra le pillole di monete e perfect streak.

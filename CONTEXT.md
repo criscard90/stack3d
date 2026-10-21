@@ -17,7 +17,7 @@
 - Sequencer registrato **una sola volta** (`waSeqId`), mai duplicato dopo pause/riprese.
 - Il context parte solo dopo un gesto utente (`audioUnlock`); il watcher (`waWatchStart`, 300ms) riprende il sequencer se il context diventa running in ritardo.
 - Cambio modalità applicato **immediatamente** in `waTick()` (`musicMode!==waLastMode`), non dopo il watcher.
-- HUD: pillola `#music-pill` (modalità, etichetta, bpm, barre intensità); opacità legata **solo** a `musicOn` (spegnere gli SFX non la dimmina).
+- HUD: in alto a sinistra solo monete e perfect streak (la pillola musica `#music-pill` è stata rimossa).
 - Modalità musicali (`AUDIO_MODES`): menu(chill 78) / game(groove 104) / frenzy(hyper 140) / danger(tensione 92).
 - Intensità dinamica `waTargetIntensity()`: cresce con score, perfect streak e altezza torre; interpolata in `waWatchStart`.
 - Limite voci pad: `MAX_PAD_VOICES=2` (il pad è la fonte di instabilità/stuttering).
