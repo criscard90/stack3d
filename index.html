@@ -219,6 +219,14 @@ function waNoiseBuffer(){
  const d=b.getChannelData(0);
  for(let i=0;i<len;i++)d[i]=Math.random()*2-1;
  waNoiseBuf=b;return b;
+/* curva di quantizzazione (bitcrush): dà il timbro "8-bit" ai suoni percussivi/esplosivi.
+   Restituisce un Float32Array riutilizzabile (allocazione unica). */
+let waCrushCurve(steps){
+  const n=steps||16;
+  const c=new Float32Array(1024);
+  for(let i=0;i<1024;i++){const x=(i/1023)*2-1;c[i]=Math.round(x*n)/n;}
+  return c;
+}
 }
 
 /* --- riverbero leggero (delay + feedback, niente convoluzione: costosa e pesante) ---
@@ -385,6 +393,46 @@ function sfxZap(bright){
  g.gain.exponentialRampToValueAtTime(0.0001,t+0.16);
  o.connect(g);g.connect(waSfxBus);
  o.start(t);o.stop(t+0.2);
+/* esplosione blocchi 8-bit: sub + rumore quantizzato (bitcrush) + sweep.
+   Chiamato da: sfxBomb, sfxTNT, explodeBlast, frenzyHit */
+function sfxBlockExplode(big){
+  if(!waCtx||!soundOn)return;
+  const t=waCtx.currentTime;
+  // sub profondo
+  const os=waCtx.createOscillator();os.type='sine';
+  const subFreq=big?52:44;
+  os.frequency.setValueAtTime(subFreq,t);
+  os.frequency.exponentialRampToValueAtTime(28,t+0.3);
+  const gs=waCtx.createGain();
+  gs.gain.setValueAtTime(0,t);
+  gs.gain.linearRampToValueAtTime(big?0.3:0.2,t+0.02);
+  gs.gain.exponentialRampToValueAtTime(0.0001,t+0.5);
+  os.connect(gs);gs.connect(waSfxBus);
+  os.start(t);os.stop(t+0.6);
+  setTimeout(()=>{try{os.disconnect();gs.disconnect();}catch(e){}},700);
+  // rumore quantizzato (8-bit)
+  const on=waCtx.createOscillator();on.type='sawtooth';
+  on.frequency.setValueAtTime(880,t);
+  const gn=waCtx.createGain();
+  const crush=waCrushCurve(16);
+  const W=waCtx.createGain();
+  const M=waCtx.createGain();
+  on.connect(M);M.connect(W);
+  // apply bitcrush using the curve
+  const d=waCtx.createBufferSource();d.buffer=waCtx.createBuffer(1,1024,waCtx.sampleRate);
+  const dd=d.buffer.getChannelData(0);
+  for(let i=0;i<1024;i++)dd[i]=crush[i%1024];
+  d.start(t);
+  W.connect(waSfxBus);
+  setTimeout(()=>{try{d.disconnect();W.disconnect();M.disconnect();gn.disconnect();}catch(e){}},600);
+  // sweep ascendente
+  const o2=waCtx.createOscillator();o2.type='sawtooth';
+  o2.frequency.setValueAtTime(200,t);o2.frequency.exponentialRampToValueAtTime(440,t+0.4);
+  const g2=waCtx.createGain();g2.gain.setValueAtTime(0,t);g2.gain.linearRampToValueAtTime(big?0.15:0.1,t+0.01);g2.gain.exponentialRampToValueAtTime(0.0001,t+0.5);
+  o2.connect(g2);g2.connect(waSfxBus);
+  o2.start(t);o2.stop(t+0.6);
+  setTimeout(()=>{try{o2.disconnect();g2.disconnect();}catch(e){}},700);
+}
  setTimeout(()=>{try{o.disconnect();g.disconnect();}catch(e){}},400);
  waNoise(t,0.12,0.1,waSfxBus,2500,'highpass');
 }
@@ -821,7 +869,7 @@ function endFrenzy(){
  const topNow=stack[stack.length-2];const moving=stack[stack.length-1];
  if(topNow&&moving){moving.width=topNow.width;moving.depth=topNow.depth;moving.mesh.scale.x=Math.max(topNow.width,.001);moving.mesh.scale.z=Math.max(topNow.depth,.001);moving.mesh.position.x=topNow.mesh.position.x;moving.mesh.position.z=topNow.mesh.position.z;moving.x=moving.mesh.position.x;moving.z=moving.mesh.position.z;moving.mesh.position.y=boxHeight*(stack.length-1);}
  // (speed volutamente invariata)
- banner('Frenzy over! -'+frenzyHits+' blocks');flash(.5,'#ffffff');saveMeta();refreshHUD();sfxWave();
+ banner('Frenzy over! -'+frenzyHits+' blocks');flash(.5,'#ffffff');saveMeta();refreshHUD();sfxWave();sfxBlockExplode();
  frenzySinceCheck=0;
 }
 function unlockBlastAlert(){
@@ -871,7 +919,7 @@ function explodeBlast(color){
  for(let i=stack.length-2;i>=2;i--){if(stack[i].frenzyColor===color)idxs.push(i);}
  if(!idxs.length){
   const n=frenzyTop();const pp=n?new THREE.Vector3(n.mesh.position.x,n.mesh.position.y+1,n.mesh.position.z):new THREE.Vector3(0,stack.length,0);
-  spawnBurst(pp,['#888888','#555555'],10,4);vibrate(20);sfxFrenzyMiss();
+  spawnBurst(pp,['#888888','#555555'],10,4);vibrate(20);sfxFrenzyMiss();sfxBlockExplode();
   endBlast('No '+color+'! Color Blast over!');
   return;
  }
@@ -986,7 +1034,7 @@ async function detonateBomb(){
  demolishing=true;const mySeq=++demolishSeq;
  bombs--;refreshHUD();
  const total=Math.min(BOMB_POWER,(stack.length-1)-2);
- banner('-'+total+' blocks');flash(.7,'#ff9500');shake(1.2,.7);vibrate([80,50,80]);sfxBomb();
+ banner('-'+total+' blocks');flash(.7,'#ff9500');shake(1.2,.7);vibrate([80,50,80]);sfxBomb();sfxBlockExplode();
  const wp=new THREE.Vector3();stack[stack.length-1].mesh.getWorldPosition(wp);spawnBurst(wp,['#ff9500','#ff3b30','#ffe27a','#555555'],60,8);
  // distruzione a cascata: un pezzo alla volta dall'alto verso il basso (conserva le 2 basi); il pezzo in movimento resta dov'e'
  let removed=0;
@@ -1186,4 +1234,63 @@ function animation(){
  renderer.render(scene,camera);
 }
 init();
+
+/* -------------------------------------------------------------------------
+   vortice di cubi colorati (bomba/TNT/frenzy/color-blast)
+   - spawnVortex: crea N cubi attorno al base della torre, spirale verso l'alto
+   - updateVortex: sposta/circola i cubi ogni frame
+   - clearVortex: rimuove i cubi alla fine
+------------------------------------------------------------------------- */
+let vortexActive=false;
+let vortexCubes=[];
+let vortexBaseY=0;
+function spawnVortex(baseY,nCount=50){
+  if(vortexActive)return;
+  vortexActive=true;
+  vortexBaseY=baseY;
+  vortexCubes=[];
+  const geometry=new THREE.BoxGeometry(0.3,0.3,0.3);
+  const material=new THREE.MeshStandardMaterial({vertexColors:THREE.VertexColors});
+  for(let i=0;i<nCount;i++){
+    const cube=new THREE.Mesh(geometry,new THREE.MeshBasicMaterial({color:new THREE.Color().setHSL(Math.random(),0.7,0.6)}));
+    cube.position.set(
+      (Math.random()-0.5)*3,
+      vortexBaseY-Math.random()*3,
+      (Math.random()-0.5)*3
+    );
+    cube.userData={
+      speedY:0.2+Math.random()*0.3,
+      spinSpeed:0.5+Math.random()*1.5,
+      life:1.0,
+      shrinkRate:0.01+Math.random()*0.01,
+      hueOffset:Math.random()*0.2
+    };
+    scene.add(cube);
+    vortexCubes.push(cube);
+  }
+}
+function updateVortex(delta){
+  if(!vortexActive||!vortexCubes.length){return;}
+  updateVortex(dt);
+  vortexCubes.forEach(c=>{
+    const ud=c.userData;
+    c.position.y+=ud.speedY*delta;
+    c.rotation.x+=ud.spinSpeed*delta;
+    c.rotation.z+=ud.spinSpeed*delta;
+    // restringimento e fade verso l'alto
+    const t=Math.max(0,c.position.y-vortexBaseY)/20;
+    c.scale.set(1-t,1-t,1-t);
+    c.material.opacity=Math.max(0,1-t);
+    if(c.position.y>vortexBaseY+30||c.material.opacity<=0){
+      scene.remove(c);
+      vortexCubes.splice(vortexCubes.indexOf(c),1);
+    }
+  });
+  if(!vortexCubes.length){vortexActive=false;}
+}
+function clearVortex(){
+  vortexActive=false;
+  vortexCubes.forEach(c=>scene.remove(c));
+  vortexCubes=[];
+}
 </script></body></html>
